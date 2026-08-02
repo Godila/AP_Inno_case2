@@ -2,10 +2,11 @@
 // Файл целиком уезжает в блок Код проекта Agents Platform.
 // Хелперы чистые и покрыты тестами (ap/dialog-turn.test.js),
 // работа с платформой начинается в main().
+//
+// Блок Код ограничен примерно 10-16 секундами, поэтому модель вызывает
+// предыдущий узел-функция Llm.sendRequest, а этот блок только разбирает результат.
+// Распознавание речи делает прокси, сюда всегда приходит текст.
 
-// Блок Код ограничен примерно 16 секундами, поэтому извлечение идет на flash-модели.
-var LLM_MODEL_KEY = "1000156248-deepseek_deepseekv4f-yul";
-var ASR_INTEGRATION_KEY = ""; // подставить ключ интеграции Модель ASR
 var CARD_KEY = "card";
 var STATE_KEY = "dialogState";
 
@@ -37,41 +38,6 @@ var RETRY_QUESTIONS = {
 };
 
 var MAX_ATTEMPTS = 2;
-
-var EXTRACTION_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["type", "area", "wall_material", "roof_material", "year", "floors", "address", "owner"],
-  properties: {
-    type: { type: ["string", "null"], enum: ["дом", "дача", "коттедж", "баня", null] },
-    area: { type: ["number", "null"] },
-    wall_material: { type: ["string", "null"], enum: ["бревно", "брус", "кирпич", "блок", "каркас", "металл", null] },
-    roof_material: { type: ["string", "null"], enum: ["металлочерепица", "профнастил", "шифер", "мягкая кровля", "дерево", null] },
-    year: { type: ["integer", "null"] },
-    floors: { type: ["integer", "null"] },
-    address: { type: ["string", "null"] },
-    owner: { type: ["string", "null"] }
-  }
-};
-
-var EXTRACTION_PROMPT = [
-  "Ты помощник страхового агента по загородной недвижимости.",
-  "Извлеки параметры объекта страхования из реплики агента.",
-  "",
-  "Правила:",
-  "- Заполняй только то, что прозвучало в этой реплике. Всё остальное - null.",
-  "- Ничего не додумывай. Если параметр назван неоднозначно и вариантов больше одного - null.",
-  "- Числа словами переводи в цифры: \"сто двадцать квадратов\" -> area 120.",
-  "- Разговорные названия приводи к допустимым значениям:",
-  "  \"железная крыша\", \"железо\", \"оцинковка\", \"металлопрофиль\" -> профнастил;",
-  "  \"рубероид\", \"битумная черепица\" -> мягкая кровля;",
-  "  \"сруб\", \"круглый лес\" -> бревно;",
-  "  \"пеноблок\", \"газобетон\", \"газоблок\" -> блок;",
-  "  \"щитовой\", \"каркасник\" -> каркас.",
-  "- Оценочные слова о возрасте (\"старый\", \"недавно построен\") в год постройки не превращай, оставь null.",
-  "- Адрес собирай одной строкой в том виде, как он произнесен.",
-  "- Собственника записывай как ФИО одной строкой."
-].join("\n");
 
 var BASE_RATE = 100;
 
@@ -207,19 +173,6 @@ function renderReply(payload) {
   return text + "\n```json\n" + JSON.stringify(payload) + "\n```";
 }
 
-function parseInput(rawRequest, query) {
-  var data = rawRequest && rawRequest.data ? rawRequest.data : null;
-  if (data && data.audioUrl) {
-    return { audioUrl: data.audioUrl, text: null };
-  }
-  var text = typeof query === "string" ? query : "";
-  var match = text.match(/^\[audio\]\s*(\S+)\s*$/);
-  if (match) {
-    return { audioUrl: match[1], text: null };
-  }
-  return { audioUrl: null, text: text };
-}
-
 function extractedFromLlm(response) {
   if (!response || typeof response.text !== "string") {
     return null;
@@ -237,43 +190,12 @@ function extractedFromLlm(response) {
 }
 
 function main() {
-  var raw = Context.getRawRequest();
-  var content = Context.getMessageContent();
-  var input = parseInput(raw, content && content.text ? content.text : "");
-
   var stored = SessionDb.get({ documentKey: CARD_KEY });
   var card = stored && stored.value ? stored.value : emptyCard();
   var storedState = SessionDb.get({ documentKey: STATE_KEY });
   var state = storedState && storedState.value ? storedState.value : { attempts: {}, deferred: [] };
 
-  var text = input.text;
-  if (input.audioUrl) {
-    var recognized = Asr.recognize({
-      asrIntegrationKey: ASR_INTEGRATION_KEY,
-      audioUrl: input.audioUrl
-    });
-    text = recognized && recognized.result ? recognized.result.text : "";
-    Log.info({ message: "Распознано", data: { text: text } });
-  }
-
-  if (!text) {
-    var payloadEmpty = buildPayload(card, state.deferred, questionFor(nextQuestionField(card, state.deferred), state.attempts));
-    Reactions.sendText({ text: "Не расслышал, повторите пожалуйста.\n```json\n" + JSON.stringify(payloadEmpty) + "\n```" });
-    return payloadEmpty;
-  }
-
-  var llm = Llm.sendRequest({
-    llmModelKey: LLM_MODEL_KEY,
-    messages: [
-      { role: "system", text: EXTRACTION_PROMPT },
-      { role: "user", text: text }
-    ],
-    responseFormat: EXTRACTION_SCHEMA,
-    temperature: 0,
-    maxCompletionTokens: 400
-  });
-
-  var extracted = extractedFromLlm(llm);
+  var extracted = extractedFromLlm(Context.getLastFunctionResult());
   Log.info({ message: "Извлечено", data: { extracted: extracted } });
 
   var askedField = nextQuestionField(card, state.deferred);
@@ -304,9 +226,7 @@ if (typeof module !== "undefined" && module.exports) {
     questionFor: questionFor,
     buildPayload: buildPayload,
     renderReply: renderReply,
-    parseInput: parseInput,
-    extractedFromLlm: extractedFromLlm,
-    EXTRACTION_SCHEMA: EXTRACTION_SCHEMA
+    extractedFromLlm: extractedFromLlm
   };
 } else {
   main();

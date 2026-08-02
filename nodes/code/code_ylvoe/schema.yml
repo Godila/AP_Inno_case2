@@ -1,9 +1,9 @@
 ---
 id: code_ylvoe
-name: Ход диалога
+name: Карточка и цена
 position:
-  x: 779
-  y: 268
+  x: 1256
+  y: 272
 next-step: null
 next-error-step: null
 parameters:
