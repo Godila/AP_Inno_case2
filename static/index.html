@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Голосовой помощник страхового агента</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Голосовой помощник страхового агента</h1>
+    <button id="reset" type="button">Начать заново</button>
+  </header>
+  <main>
+    <section class="dialog">
+      <div id="messages" class="messages"></div>
+      <div class="controls">
+        <button id="record" type="button">Записать голос</button>
+        <label class="upload">Загрузить файл<input id="file" type="file" accept="audio/*" hidden></label>
+        <form id="text-form">
+          <input id="text" type="text" placeholder="Или введите текстом" autocomplete="off">
+          <button type="submit">Отправить</button>
+        </form>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+    <aside class="card">
+      <h2>Карточка договора</h2>
+      <dl id="fields"></dl>
+      <div id="price" class="price">Стоимость: не рассчитана</div>
+    </aside>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
