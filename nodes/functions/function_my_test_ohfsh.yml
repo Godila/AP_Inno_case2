@@ -1,0 +1,17 @@
+---
+id: function_my_test_ohfsh
+name: my.test
+position:
+  x: 1109
+  y: 532
+next-step: null
+next-error-step: null
+parameters:
+  type: USER
+  collection: my
+  function: test
+  is-tool: false
+  parameters: {}
+  context-config: null
+  hitl-tool-config: null
+  custom-headers: null

@@ -1,0 +1,7 @@
+---
+key: 1000156248-deepseek_deepseekv4p-xru
+credential-key: null
+name: DEEPSEEK - deepseek-v4-pro
+provider: DEEPSEEK
+model: just-ai/deepseek-deepseek/deepseek/deepseek-v4-pro
+is-direct-access: false

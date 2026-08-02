@@ -1,0 +1,10 @@
+---
+id: code_ylvoe
+name: Код
+position:
+  x: 779
+  y: 268
+next-step: agent_rjsar
+next-error-step: null
+parameters:
+  language: JAVASCRIPT
