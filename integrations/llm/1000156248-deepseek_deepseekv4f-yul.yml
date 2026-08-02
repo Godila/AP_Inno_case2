@@ -1,7 +1,8 @@
 ---
-key: 1000156248-deepseek_deepseekv4f-flh
+key: 1000156248-deepseek_deepseekv4f-yul
 credential-key: null
 name: DEEPSEEK - deepseek-v4-flash
 provider: DEEPSEEK
 model: just-ai/deepseek-deepseek/deepseek/deepseek-v4-flash
 is-direct-access: false
+origin-key: 1000156248-deepseek_deepseekv4f-flh

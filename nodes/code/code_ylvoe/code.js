@@ -4,7 +4,7 @@
 // работа с платформой начинается в main().
 
 // Блок Код ограничен примерно 16 секундами, поэтому извлечение идет на flash-модели.
-var LLM_MODEL_KEY = "1000156248-deepseek_deepseekv4f-flh";
+var LLM_MODEL_KEY = "1000156248-deepseek_deepseekv4f-yul";
 var ASR_INTEGRATION_KEY = ""; // подставить ключ интеграции Модель ASR
 var CARD_KEY = "card";
 var STATE_KEY = "dialogState";
