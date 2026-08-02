@@ -2,8 +2,8 @@
 id: function_my_test_ohfsh
 name: my.test
 position:
-  x: 1109
-  y: 532
+  x: 1104
+  y: 500
 next-step: null
 next-error-step: null
 parameters:

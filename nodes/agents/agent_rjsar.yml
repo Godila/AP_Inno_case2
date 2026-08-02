@@ -2,8 +2,8 @@
 id: agent_rjsar
 name: Агент
 position:
-  x: 1114
-  y: 251
+  x: 1126
+  y: 268
 next-step: null
 next-error-step: null
 parameters:
