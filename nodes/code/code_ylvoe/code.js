@@ -3,7 +3,8 @@
 // Хелперы чистые и покрыты тестами (ap/dialog-turn.test.js),
 // работа с платформой начинается в main().
 
-var LLM_MODEL_KEY = "1000156248-deepseek_deepseekv4p-xru";
+// Блок Код ограничен примерно 16 секундами, поэтому извлечение идет на flash-модели.
+var LLM_MODEL_KEY = "1000156248-deepseek_deepseekv4f-flh";
 var ASR_INTEGRATION_KEY = ""; // подставить ключ интеграции Модель ASR
 var CARD_KEY = "card";
 var STATE_KEY = "dialogState";
@@ -268,7 +269,8 @@ function main() {
       { role: "user", text: text }
     ],
     responseFormat: EXTRACTION_SCHEMA,
-    temperature: 0
+    temperature: 0,
+    maxCompletionTokens: 400
   });
 
   var extracted = extractedFromLlm(llm);
