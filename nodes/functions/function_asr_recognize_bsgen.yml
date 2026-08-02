@@ -2,8 +2,8 @@
 id: function_asr_recognize_bsgen
 name: Asr.recognize
 position:
-  x: 726
-  y: 504
+  x: 610
+  y: 490
 next-step: null
 next-error-step: null
 parameters:

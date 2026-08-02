@@ -7,9 +7,9 @@ position:
 next-step: null
 next-error-step: null
 parameters:
-  llm-model-key: null
+  llm-model-key: 1000156248-deepseek_deepseekv4p-xru
   llm-model-settings:
-    max-tokens: null
+    max-tokens: 4000
     temperature: 0.6
     top-p: 1.0
     frequency-penalty: 0.0
@@ -18,10 +18,10 @@ parameters:
     structured-output-enabled: false
     structured-output-schema: null
   system-promts:
-    role: null
-    goal: null
-    instructions: null
-    query-override: null
+    role: специалист
+    goal: ответь на вопрос
+    instructions: ""
+    query-override: ""
   tools: []
   handoff-agents:
     allowed-any: false
