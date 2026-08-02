@@ -11,6 +11,9 @@ class Config:
     max_audio_bytes: int
     audio_ttl_hours: int
     chat_timeout_seconds: float
+    asr_api_key: str
+    asr_url: str
+    asr_timeout_seconds: float
 
 
 def load_config() -> Config:
@@ -22,4 +25,10 @@ def load_config() -> Config:
         max_audio_bytes=int(os.getenv("MAX_AUDIO_BYTES", str(10 * 1024 * 1024))),
         audio_ttl_hours=int(os.getenv("AUDIO_TTL_HOURS", "24")),
         chat_timeout_seconds=float(os.getenv("CHAT_TIMEOUT_SECONDS", "60")),
+        asr_api_key=os.getenv("ASR_API_KEY", ""),
+        asr_url=os.getenv(
+            "ASR_URL",
+            "https://caila.io/api/mlpgate/account/jay/model/sber-gigaam/predict",
+        ),
+        asr_timeout_seconds=float(os.getenv("ASR_TIMEOUT_SECONDS", "120")),
     )

@@ -137,19 +137,33 @@ async function send(body) {
   }
 }
 
+// Распознавание делает прокси при загрузке записи, в диалог уходит уже текст.
 async function uploadAndSend(blob, filename) {
-  statusEl.textContent = "Загружаю запись…";
+  statusEl.textContent = "Распознаю запись…";
+  recordBtn.disabled = true;
   const form = new FormData();
   form.append("file", blob, filename);
-  const response = await fetch("/api/audio", { method: "POST", body: form });
-  if (!response.ok) {
+  let result;
+  try {
+    const response = await fetch("/api/audio", { method: "POST", body: form });
+    result = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      addMessage("bot", "Не удалось распознать запись: " + (result.error || response.status));
+      return;
+    }
+  } catch (error) {
+    addMessage("bot", "Сеть недоступна: " + error.message);
+    return;
+  } finally {
     statusEl.textContent = "";
-    addMessage("bot", "Не удалось загрузить запись.");
+    recordBtn.disabled = false;
+  }
+  if (!result.text) {
+    addMessage("bot", "Не расслышал, повторите пожалуйста.");
     return;
   }
-  const audioUrl = (await response.json()).audioUrl;
-  addMessage("agent", "Голосовое сообщение");
-  await send({ audioUrl: audioUrl });
+  addMessage("agent", result.text);
+  await send({ text: result.text });
 }
 
 recordBtn.addEventListener("click", async function () {

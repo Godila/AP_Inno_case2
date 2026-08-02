@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from app.asr import AsrError, CailaAsrClient
 from app.audio_store import AudioStore, AudioTooLarge, UnsupportedAudio
 from app.chat_api import ChatApiClient, ChatApiError
 from app.config import load_config
@@ -16,14 +17,13 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 class MessageIn(BaseModel):
     clientId: str
     text: Optional[str] = None
-    audioUrl: Optional[str] = None
 
 
 class ResetIn(BaseModel):
     clientId: str
 
 
-def create_app(chat_api, audio_dir, public_base_url, max_audio_bytes, audio_ttl_hours) -> FastAPI:
+def create_app(chat_api, asr, audio_dir, public_base_url, max_audio_bytes, audio_ttl_hours) -> FastAPI:
     app = FastAPI(title="Voice insurance demo proxy")
     store = AudioStore(directory=audio_dir, max_bytes=max_audio_bytes, ttl_hours=audio_ttl_hours)
     base_url = public_base_url.rstrip("/")
@@ -38,7 +38,13 @@ def create_app(chat_api, audio_dir, public_base_url, max_audio_bytes, audio_ttl_
         except AudioTooLarge:
             raise HTTPException(status_code=413, detail="file too large")
         store.purge_expired()
-        return {"audioUrl": f"{base_url}/audio/{name}"}
+
+        try:
+            text = asr.recognize(content)
+        except AsrError as error:
+            return JSONResponse(status_code=502, content={"error": str(error)})
+
+        return {"audioUrl": f"{base_url}/audio/{name}", "text": text}
 
     @app.get("/audio/{name}")
     def get_audio(name: str):
@@ -50,18 +56,11 @@ def create_app(chat_api, audio_dir, public_base_url, max_audio_bytes, audio_ttl_
 
     @app.post("/api/message")
     def send_message(payload: MessageIn):
-        if not payload.text and not payload.audioUrl:
-            raise HTTPException(status_code=422, detail="text or audioUrl is required")
-
-        if payload.audioUrl:
-            query = f"[audio] {payload.audioUrl}"
-            data = {"audioUrl": payload.audioUrl}
-        else:
-            query = payload.text
-            data = None
+        if not payload.text:
+            raise HTTPException(status_code=422, detail="text is required")
 
         try:
-            return chat_api.send_query(payload.clientId, query, data)
+            return chat_api.send_query(payload.clientId, payload.text)
         except ChatApiError as error:
             return JSONResponse(status_code=502, content={"error": str(error)})
 
@@ -85,8 +84,14 @@ def build_default_app() -> FastAPI:
         token=config.chat_api_token,
         timeout=config.chat_timeout_seconds,
     )
+    asr = CailaAsrClient(
+        api_key=config.asr_api_key,
+        url=config.asr_url,
+        timeout=config.asr_timeout_seconds,
+    )
     return create_app(
         chat_api=chat_api,
+        asr=asr,
         audio_dir=config.audio_dir,
         public_base_url=config.public_base_url,
         max_audio_bytes=config.max_audio_bytes,
