@@ -2,8 +2,8 @@
 var raw = Context.getRawRequest();
 var content = Context.getMessageContent();
 
-Log.info({ text: "SPIKE raw: " + JSON.stringify(raw) });
-Log.info({ text: "SPIKE content: " + JSON.stringify(content) });
+Log.info({ message: "SPIKE raw", data: { raw: raw } });
+Log.info({ message: "SPIKE content", data: { content: content } });
 
 var data = raw && raw.data ? raw.data : null;
 var files = content && content.files ? content.files : null;
@@ -30,3 +30,5 @@ Reactions.sendText({
     " files=" + JSON.stringify(files) +
     "\n```json\n" + JSON.stringify(payload) + "\n```"
 });
+
+return { data: data, files: files };
