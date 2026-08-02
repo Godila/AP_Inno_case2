@@ -4,7 +4,7 @@ name: Диагностика входа
 position:
   x: 779
   y: 268
-next-step: agent_rjsar
+next-step: null
 next-error-step: null
 parameters:
   language: JAVASCRIPT
