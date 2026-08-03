@@ -1,92 +1,110 @@
-// Временный узел-спайк. Отвечает на четыре вопроса и удаляется:
-// 1. Как отдается npm-пакет: готовой переменной по code-name или через require.
-// 2. Становятся ли встроенные функции асинхронными при подключенных зависимостях.
-//    Это важнее PDF: если да, saveCard в коллекции my надо переписать на await.
-// 3. Доступны ли подпути пакета (pdfmake/fonts/Roboto).
-// 4. Укладывается ли рендер в лимит песочницы (локально на Node 24 - 64 мс).
+// Временный узел-спайк, итерация 2.
 //
-// Каждый шаг подписан в report.step, поэтому падение сразу показывает место.
-// Все вызовы обернуты в await: await на обычном значении безвреден, так что код
-// работает и в синхронном, и в асинхронном режиме.
+// Что уже выяснено первой итерацией:
+// - npm-пакет отдается готовой переменной по code-name, require в песочнице нет;
+// - встроенные функции становятся асинхронными в коллекции с зависимостями
+//   (коллекции без зависимостей это не затрагивает);
+// - lib.createPdf отсутствует, значит переменная не тот объект, что отдает пакет в Node.
+//
+// Эта итерация снимает слепок переменной и перебирает способы добраться до шрифтов.
+// Каждая попытка пишется в attempts со своей ошибкой, чтобы одного прогона хватило.
 
-async function probe() {
-  var report = {
-    spike: "pdfmake",
-    step: "start",
-    libSource: null,
-    fontsSource: null,
-    asyncBuiltins: null,
-    ms: null,
-    pdfKb: null,
-    base64Kb: null,
-    signature: null,
-    error: null
-  };
-
+function describe(value) {
+  if (value === null || value === undefined) {
+    return String(value);
+  }
+  if (typeof value !== "object" && typeof value !== "function") {
+    return typeof value;
+  }
+  var keys = [];
   try {
-    report.step = "builtins";
-    var probeCall = SessionDb.get({ documentKey: "card" });
-    report.asyncBuiltins = !!(probeCall && typeof probeCall.then === "function");
-    await probeCall;
+    keys = Object.keys(value).slice(0, 25);
+  } catch (error) {
+    keys = ["<не перечисляется>"];
+  }
+  return typeof value + ": " + keys.join(",");
+}
 
-    report.step = "lib";
-    var lib = null;
-    if (typeof pdfmake !== "undefined" && pdfmake) {
-      lib = pdfmake;
-      report.libSource = "global";
-    } else if (typeof require === "function") {
-      lib = require("pdfmake");
-      report.libSource = "require";
-    }
-    if (!lib) {
-      throw new Error("пакет недоступен ни переменной, ни через require");
-    }
-
-    report.step = "fonts";
-    var fonts = null;
-    if (typeof require === "function") {
-      try {
-        fonts = require("pdfmake/fonts/Roboto");
-        report.fontsSource = "subpath";
-      } catch (fontError) {
-        report.fontsSource = "subpath failed: " + fontError.message;
-      }
-    }
+async function tryRender(lib, fonts, label, attempts) {
+  try {
     if (fonts) {
       await lib.addFonts(fonts);
     }
-
-    report.step = "render";
     var started = Date.now();
-    var document = {
+    var buffer = await lib.createPdf({
       defaultStyle: { font: "Roboto", fontSize: 11 },
-      content: [
-        { text: "Проверка кириллицы", fontSize: 18, bold: true },
-        { text: "дача, бревно, металлочерепица, Иванов Пётр Сергеевич" }
-      ]
-    };
-    var buffer = await lib.createPdf(document).getBuffer();
-    report.ms = Date.now() - started;
-
-    report.step = "encode";
+      content: [{ text: "Проверка кириллицы: дача, бревно, Иванов Пётр" }]
+    }).getBuffer();
     var base64 = typeof buffer.toString === "function"
       ? buffer.toString("base64")
       : Buffer.from(buffer).toString("base64");
-    report.pdfKb = Math.round(base64.length * 0.75 / 102.4) / 10;
-    report.base64Kb = Math.round(base64.length / 102.4) / 10;
-    report.signature = base64.slice(0, 8);
-    report.step = "ok";
+    attempts.push(label + ": ok " + (Date.now() - started) + "ms " + Math.round(base64.length / 1024) + "kb " + base64.slice(0, 5));
+    return base64;
   } catch (error) {
-    report.error = error && error.message ? error.message : String(error);
+    attempts.push(label + ": " + (error && error.message ? error.message : String(error)).slice(0, 120));
+    return null;
+  }
+}
+
+async function probe() {
+  var report = { spike: "pdfmake-2", raw: null, lib: null, methods: null, attempts: [], done: false };
+  var attempts = report.attempts;
+
+  try {
+    var raw = typeof pdfmake !== "undefined" ? pdfmake : null;
+    report.raw = describe(raw);
+
+    var lib = raw && raw.default ? raw.default : raw;
+    report.lib = describe(lib);
+    report.methods = ["createPdf", "addFonts", "setFonts", "setLocalAccessPolicy", "vfs"]
+      .map(function (name) { return name + "=" + (lib ? typeof lib[name] : "нет"); })
+      .join(" ");
+
+    if (!lib || typeof lib.createPdf !== "function") {
+      throw new Error("createPdf не найден ни в переменной, ни в default");
+    }
+
+    // 1. Вдруг шрифт по умолчанию уже подключен.
+    var base64 = await tryRender(lib, null, "без шрифтов", attempts);
+
+    // 2. Серверная сборка ждет пути к TTF внутри пакета.
+    if (!base64) {
+      var dir = "node_modules/pdfmake/fonts/Roboto/";
+      base64 = await tryRender(lib, {
+        Roboto: {
+          normal: dir + "Roboto-Regular.ttf",
+          bold: dir + "Roboto-Medium.ttf",
+          italics: dir + "Roboto-Italic.ttf",
+          bolditalics: dir + "Roboto-MediumItalic.ttf"
+        }
+      }, "пути в node_modules", attempts);
+    }
+
+    // 3. То же, но абсолютным путем от корня функции.
+    if (!base64) {
+      var abs = "/home/app/node_modules/pdfmake/fonts/Roboto/";
+      base64 = await tryRender(lib, {
+        Roboto: {
+          normal: abs + "Roboto-Regular.ttf",
+          bold: abs + "Roboto-Medium.ttf",
+          italics: abs + "Roboto-Italic.ttf",
+          bolditalics: abs + "Roboto-MediumItalic.ttf"
+        }
+      }, "абсолютный путь", attempts);
+    }
+
+    report.done = !!base64;
+  } catch (error) {
+    attempts.push("fatal: " + (error && error.message ? error.message : String(error)).slice(0, 160));
   }
 
   await Reactions.sendText({ text: "```json\n" + JSON.stringify(report) + "\n```" });
-  await Log.info({ message: "Спайк pdfmake", data: report });
+  await Log.info({ message: "Спайк pdfmake 2", data: report });
   return report;
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { probe: probe };
+  module.exports = { probe: probe, describe: describe };
 } else {
   return probe();
 }
