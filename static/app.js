@@ -211,6 +211,9 @@ resetBtn.addEventListener("click", async function () {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientId: clientId })
   });
+  // Карточка живет в SessionDb платформы, поэтому новый прогон начинаем с новой сессии.
+  clientId = "demo-" + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem("clientId", clientId);
   messagesEl.innerHTML = "";
   previousCard = {};
   renderCard(null);
