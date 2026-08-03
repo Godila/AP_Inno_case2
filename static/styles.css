@@ -23,3 +23,23 @@ dd.filled { animation: flash 0.6s ease-out; }
 @keyframes flash { from { background: #fff3bf; } to { background: transparent; } }
 .price { font-size: 18px; font-weight: 700; border-top: 1px solid #e2e4e8; padding-top: 12px; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+/* Телефон: карточка выше диалога, кнопки под палец, ввод без автозума в iOS. */
+@media (max-width: 720px) {
+  header { padding: 12px 16px; gap: 12px; }
+  h1 { font-size: 16px; }
+  main { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); gap: 12px; }
+  .dialog, .card { padding: 14px; }
+  .card { order: 1; }
+  .dialog { order: 2; }
+  .messages { min-height: 180px; max-height: 45vh; max-height: 45dvh; }
+  .msg { max-width: 92%; }
+  .controls button, .upload { min-height: 44px; padding: 10px 16px; font-size: 15px; }
+  .upload { display: inline-flex; align-items: center; }
+  #record { flex: 1 1 100%; font-weight: 600; }
+  #text-form { flex: 1 1 100%; min-width: 0; }
+  #text { min-height: 44px; font-size: 16px; }
+  #reset { min-height: 40px; white-space: nowrap; }
+  dl { grid-template-columns: 1fr auto; gap: 8px 12px; }
+  dd { text-align: right; }
+}
