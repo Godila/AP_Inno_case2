@@ -2,8 +2,8 @@
 id: agent_stub
 name: Андеррайтер (заглушка)
 position:
-  x: 1275
-  y: 280
+  x: 856
+  y: 700
 next-step: null
 next-error-step: null
 parameters:
@@ -19,7 +19,7 @@ parameters:
     structured-output-schema: null
   system-promts:
     role: Ты андеррайтер. Это временная заглушка для проверки передачи управления.
-    goal: "Подтвердить, что разговор дошел до тебя."
+    goal: Подтвердить, что разговор дошел до тебя.
     instructions: |-
       Как только заявка дошла до тебя, сделай ровно два действия.
       1. Вызови инструмент поиска с запросом "Васильево".
@@ -27,9 +27,9 @@ parameters:
          триста символов ответа инструмента дословно, без пересказа.
       Если инструмент вернул ошибку, приведи текст ошибки дословно.
       Ничего другого не делай и вопросов не задавай.
-    query-override: null
+    query-override: ""
   tools:
-  - function_search_search_web_tviuw
+    - function_search_search_web_tviuw
   handoff-agents:
     allowed-any: false
     allowed-agent-node-ids: []
