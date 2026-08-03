@@ -12,7 +12,7 @@ from app.asr import AsrError, CailaAsrClient
 from app.audio_store import AudioStore, AudioTooLarge, UnsupportedAudio
 from app.chat_api import ChatApiClient, ChatApiError
 from app.config import load_config
-from app.policy_store import PolicyStore, PolicyTooLarge
+from app.policy_store import InvalidClientId, PolicyStore, PolicyTooLarge
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -28,6 +28,8 @@ class ResetIn(BaseModel):
 
 class PolicyIn(BaseModel):
     pdfBase64: str
+    clientId: Optional[str] = None
+    policy: Optional[dict] = None
 
 
 def create_app(
@@ -90,7 +92,27 @@ def create_app(
         except PolicyTooLarge:
             raise HTTPException(status_code=413, detail="policy too large")
         policies.purge_expired()
-        return {"url": f"{base_url}/policy/{name}"}
+
+        url = f"{base_url}/policy/{name}"
+        if payload.clientId and payload.policy is not None:
+            record = dict(payload.policy)
+            record["pdfUrl"] = url
+            try:
+                policies.save_record(payload.clientId, record)
+            except InvalidClientId:
+                raise HTTPException(status_code=422, detail="invalid clientId")
+        return {"url": url}
+
+    # Страница спрашивает последний полис клиента после каждого хода: реплики
+    # функции выпуска до канала не доезжают, и это единственный надежный путь.
+    @app.get("/api/policy/latest")
+    def latest_policy(clientId: str):
+        try:
+            return {"policy": policies.latest(clientId)}
+        except InvalidClientId:
+            raise HTTPException(status_code=422, detail="invalid clientId")
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="not found")
 
     @app.get("/policy/{name}")
     def get_policy(name: str):

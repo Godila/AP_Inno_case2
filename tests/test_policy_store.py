@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from app.policy_store import PolicyStore, PolicyTooLarge
+from app.policy_store import InvalidClientId, PolicyStore, PolicyTooLarge
 
 
 def build(tmp_path, max_bytes=1024, ttl_hours=24):
@@ -48,3 +48,23 @@ def test_purge_removes_only_expired(tmp_path):
     assert store.path(fresh).is_file()
     with pytest.raises(FileNotFoundError):
         store.path(old)
+
+
+def test_record_round_trip(tmp_path):
+    store = build(tmp_path)
+    store.save_record("demo-abc", {"number": "ПА-2026-000004", "pdfUrl": "https://x/y.pdf"})
+    assert store.latest("demo-abc")["number"] == "ПА-2026-000004"
+
+
+def test_record_rejects_unsafe_client_id(tmp_path):
+    store = build(tmp_path)
+    with pytest.raises(InvalidClientId):
+        store.save_record("../evil", {})
+    with pytest.raises(InvalidClientId):
+        store.latest("a/b")
+
+
+def test_latest_reports_missing_client(tmp_path):
+    store = build(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        store.latest("demo-none")

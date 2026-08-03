@@ -204,3 +204,30 @@ def test_missing_policy_gives_404(tmp_path):
     client = build(tmp_path, FakeChatApi())
 
     assert client.get("/policy/deadbeef.pdf").status_code == 404
+
+
+def test_policy_upload_stores_record_for_client(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    body = {
+        "pdfBase64": base64.b64encode(b"%PDF").decode("ascii"),
+        "clientId": "demo-abc",
+        "policy": {"number": "ПА-2026-000004", "issuedAt": "03.08.2026"},
+    }
+
+    url = client.post("/api/policy", json=body, headers={"X-Policy-Token": "secret"}).json()["url"]
+
+    stored = client.get("/api/policy/latest", params={"clientId": "demo-abc"}).json()["policy"]
+    assert stored["number"] == "ПА-2026-000004"
+    assert stored["pdfUrl"] == url
+
+
+def test_latest_policy_is_404_for_unknown_client(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+
+    assert client.get("/api/policy/latest", params={"clientId": "demo-none"}).status_code == 404
+
+
+def test_latest_policy_rejects_unsafe_client_id(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+
+    assert client.get("/api/policy/latest", params={"clientId": "../etc"}).status_code == 422

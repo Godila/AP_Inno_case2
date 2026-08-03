@@ -234,6 +234,25 @@ function clearPolicy() {
   policyEl.innerHTML = "";
 }
 
+// Реквизиты полиса страница забирает у прокси, а не из диалога: реплики функции
+// выпуска до канала не доезжают ни целиком, ни по частям. Функция кладет их туда же,
+// куда и бланк.
+async function fetchPolicy() {
+  try {
+    const response = await fetch("/api/policy/latest?clientId=" + encodeURIComponent(clientId));
+    if (!response.ok) {
+      return;
+    }
+    const found = (await response.json()).policy;
+    if (found && (!lastPolicy || lastPolicy.number !== found.number)) {
+      lastPolicy = found;
+      renderPolicy();
+    }
+  } catch (error) {
+    // Полис не главное в ходе: молчим и пробуем на следующем.
+  }
+}
+
 // Бланк лежит на прокси и приходит ссылкой: в песочнице платформы нет объектного
 // хранилища, а реплика с base64 до канала не доезжает.
 function renderPolicy() {
@@ -289,6 +308,7 @@ async function send(body) {
     }
     const result = await response.json();
     turn = renderTurn(result);
+    await fetchPolicy();
   } catch (error) {
     addMessage("bot", "Сеть недоступна: " + error.message);
   } finally {
