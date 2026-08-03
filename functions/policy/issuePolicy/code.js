@@ -223,7 +223,7 @@ async function renderPdf(policy) {
 // с восемнадцатью килобайтами base64 до канала не доезжает.
 // Адрес и секрет лежат в базе документом settings, рядом с тарифом: в код их класть
 // нельзя, они уедут в git.
-async function publishPdf(settings, base64) {
+async function publishPdf(settings, base64, clientId, policy) {
   if (!settings || !settings.proxyUrl || !settings.policyToken) {
     await Log.error({ message: "Документ settings не настроен, бланк не опубликован" });
     return null;
@@ -231,7 +231,7 @@ async function publishPdf(settings, base64) {
   var response = await Http.post({
     url: String(settings.proxyUrl).replace(/\/+$/, "") + "/api/policy",
     headers: { "X-Policy-Token": settings.policyToken, "Content-Type": "application/json" },
-    body: { pdfBase64: base64 }
+    body: { pdfBase64: base64, clientId: clientId, policy: policy }
   });
   if (!response || response.status !== 200) {
     await Log.error({
@@ -279,7 +279,13 @@ async function run() {
     dbIntegration: DB_INTEGRATION,
     documentKey: SETTINGS_KEY
   }));
-  policy.pdfUrl = await publishPdf(settings, base64);
+  var client = await Context.getClientInfo();
+  policy.pdfUrl = await publishPdf(
+    settings,
+    base64,
+    client && client.id ? client.id : null,
+    policy
+  );
 
   await Db.put({
     dbIntegration: DB_INTEGRATION,
