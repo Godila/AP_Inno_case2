@@ -1,0 +1,15 @@
+---
+id: function_pdfspike
+name: Спайк pdfmake
+position:
+  x: 680
+  y: 460
+next-step: agent_rjsar
+next-error-step: null
+parameters:
+  type: USER
+  collection: pdfspike
+  function: pdfspike
+  is-tool: false
+  context-config: null
+  parameters: {}
