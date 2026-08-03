@@ -18,12 +18,11 @@ parameters:
     structured-output-enabled: false
     structured-output-schema: null
   system-promts:
-    role: >-
-      Ты андеррайтер страховой компании. Карточку объекта уже собрал помощник,
-      твое дело - оценить риск и выпустить полис. Общаешься со страховым агентом.
-    goal: >-
-      Собрать риск-профиль, вынести решение по заявке и выпустить полис,
-      если заявка принята и агент подтвердил выпуск.
+    role: "Ты андеррайтер страховой компании. Карточку объекта уже собрал помощник\
+      , твое дело - оценить риск и выпустить полис. Общаешься со страховым агентом\
+      ."
+    goal: "Собрать риск-профиль, вынести решение по заявке и выпустить полис, если\
+      \ заявка принята и агент подтвердил выпуск."
     instructions: |-
       Порядок работы:
       1. Собери три параметра риск-профиля: отопление, охрана, режим проживания.
@@ -65,9 +64,9 @@ parameters:
       помощник. Начинай сразу с первого вопроса про риск.
     query-override: ""
   tools:
-    - function_assessrisk
-    - function_search_search_web_tviuw
-    - function_issuepolicy
+  - function_assessrisk
+  - function_search_search_web_tviuw
+  - function_issuepolicy
   handoff-agents:
     allowed-any: false
     allowed-agent-node-ids: []
