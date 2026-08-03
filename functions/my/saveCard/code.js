@@ -97,26 +97,42 @@ function calcPrice(card) {
   };
 }
 
-function buildPayload(card) {
+function buildPayload(card, stored) {
   var missing = missingFields(card);
   return {
     card: card,
     missing: missing,
     price: calcPrice(card),
-    isComplete: missing.length === 0
+    isComplete: missing.length === 0,
+    stored: stored === true
   };
+}
+
+// Документ из SessionDb приходит либо как есть, либо обернутым в поле value -
+// контракт функции этого не уточняет, поэтому принимаем оба варианта.
+function cardFromDocument(document) {
+  if (!document || typeof document !== "object") {
+    return null;
+  }
+  var source = document.value && typeof document.value === "object" ? document.value : document;
+  for (var i = 0; i < PRIORITY.length; i++) {
+    if (Object.prototype.hasOwnProperty.call(source, PRIORITY[i])) {
+      return source;
+    }
+  }
+  return null;
 }
 
 // Карточка едет на страницу отдельным сообщением: страница вынимает JSON-блок
 // из любой реплики, а текст вопроса берет из ответа агента.
 function run(heard) {
-  var stored = SessionDb.get({ documentKey: CARD_KEY });
-  var card = stored && stored.value ? stored.value : emptyCard();
-  var merged = mergeCard(card, heard);
+  var document = SessionDb.get({ documentKey: CARD_KEY });
+  var stored = cardFromDocument(document);
+  var merged = mergeCard(stored || emptyCard(), heard);
 
   SessionDb.put({ documentKey: CARD_KEY, value: merged });
 
-  var payload = buildPayload(merged);
+  var payload = buildPayload(merged, stored !== null);
   Log.info({ message: "Карточка обновлена", data: payload });
   Reactions.sendText({ text: "```json\n" + JSON.stringify(payload) + "\n```" });
 
@@ -129,7 +145,8 @@ if (typeof module !== "undefined" && module.exports) {
     mergeCard: mergeCard,
     missingFields: missingFields,
     calcPrice: calcPrice,
-    buildPayload: buildPayload
+    buildPayload: buildPayload,
+    cardFromDocument: cardFromDocument
   };
 } else {
   return run({
