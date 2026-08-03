@@ -3,7 +3,7 @@ id: function_savecard
 name: Карточка и цена
 position:
   x: 856
-  y: 552
+  y: 584
 next-step: null
 next-error-step: null
 parameters:

@@ -1,0 +1,8 @@
+---
+description: pdfspike
+dependencies:
+- key: pdfmake
+  version: 0.3.11
+  code-name: pdfmake
+  description: Client/server side PDF printing in pure JavaScript
+language: JAVASCRIPT

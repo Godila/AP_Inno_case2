@@ -192,4 +192,6 @@ For detailed info about parameters and response, read the corresponding file.
   Directory: functions/my/test/
 - `my.saveCard` — Сохраняет услышанные параметры объекта страхования в карточку и пересчитывает стоимость полиса. Вызывай после каждой реплики агента. Передавай только те параметры, которые прозвучали в этой реплике, остальные не передавай.
   Directory: functions/my/saveCard/
+- `pdfspike.pdfspike` — pdfspike
+  Directory: functions/pdfspike/pdfspike/
 
