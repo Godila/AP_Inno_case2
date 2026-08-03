@@ -1,12 +1,13 @@
 ---
 id: issuePolicy
 name: issuePolicy
-description: "Выпускает полис: присваивает номер, формирует бланк PDF и записывает\
-  \ сделку в реестр. Вызывай только после того, как оценка риска дала решение accepted\
-  \ и человек подтвердил выпуск. Параметров не требует, все данные берутся из сесс\
-  ии."
-response-description: "Объект с полями issued, number (номер полиса), price (преми\
-  я), sumInsured, franchise, issuedAt и expiresAt. Если выпуск невозможен, issued\
-  \ равно false, а reason объясняет причину."
+description: >-
+  Выпускает полис: присваивает номер, формирует бланк PDF и записывает сделку
+  в реестр. Вызывай только после того, как оценка риска дала решение accepted
+  и человек подтвердил выпуск. Параметров не требует, все данные берутся из сессии.
+response-description: >-
+  Объект с полями issued, number (номер полиса), price (премия), sumInsured,
+  franchise, issuedAt и expiresAt. Если выпуск невозможен, issued равно false,
+  а reason объясняет причину.
 parameters: []
 language: JAVASCRIPT
