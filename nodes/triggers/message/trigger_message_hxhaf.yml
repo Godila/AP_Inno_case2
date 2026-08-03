@@ -4,7 +4,7 @@ name: Сообщение
 position:
   x: 456
   y: 272
-next-step: function_llm
+next-step: agent_rjsar
 next-error-step: null
 parameters:
   placeholder: null

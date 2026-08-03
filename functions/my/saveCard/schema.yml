@@ -1,0 +1,44 @@
+---
+id: saveCard
+name: saveCard
+description: >-
+  Сохраняет услышанные параметры объекта страхования в карточку и пересчитывает
+  стоимость полиса. Вызывай после каждой реплики агента. Передавай только те
+  параметры, которые прозвучали в этой реплике, остальные не передавай.
+response-description: >-
+  Объект с полями card (текущая карточка), missing (список незаполненных полей
+  в порядке приоритета), price (стоимость с разбивкой) и isComplete.
+parameters:
+  - name: type
+    type: STRING
+    required: false
+    description: "Тип объекта, одно из значений: дом, дача, коттедж, баня"
+  - name: area
+    type: NUMBER
+    required: false
+    description: Площадь объекта в квадратных метрах
+  - name: wall_material
+    type: STRING
+    required: false
+    description: "Материал стен, одно из значений: бревно, брус, кирпич, блок, каркас, металл"
+  - name: year
+    type: INTEGER
+    required: false
+    description: Год постройки числом, например 2015
+  - name: roof_material
+    type: STRING
+    required: false
+    description: "Материал кровли, одно из значений: металлочерепица, профнастил, шифер, мягкая кровля, дерево"
+  - name: floors
+    type: INTEGER
+    required: false
+    description: Количество этажей числом
+  - name: address
+    type: STRING
+    required: false
+    description: Адрес объекта одной строкой
+  - name: owner
+    type: STRING
+    required: false
+    description: ФИО собственника одной строкой
+language: JAVASCRIPT

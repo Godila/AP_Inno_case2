@@ -1,0 +1,47 @@
+---
+id: function_savecard
+name: Карточка и цена
+position:
+  x: 856
+  y: 552
+next-step: null
+next-error-step: null
+parameters:
+  type: USER
+  collection: my
+  function: saveCard
+  is-tool: true
+  context-config: null
+  parameters:
+    type:
+      type: STRING
+      value: null
+      filled-ai: true
+    area:
+      type: NUMBER
+      value: null
+      filled-ai: true
+    wall_material:
+      type: STRING
+      value: null
+      filled-ai: true
+    year:
+      type: INTEGER
+      value: null
+      filled-ai: true
+    roof_material:
+      type: STRING
+      value: null
+      filled-ai: true
+    floors:
+      type: INTEGER
+      value: null
+      filled-ai: true
+    address:
+      type: STRING
+      value: null
+      filled-ai: true
+    owner:
+      type: STRING
+      value: null
+      filled-ai: true
