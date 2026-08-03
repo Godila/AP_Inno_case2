@@ -4,27 +4,43 @@
 //
 // Диалог ведет блок Агент: он решает, что спросить дальше, опираясь на missing.
 // Здесь только детерминированная часть - слияние карточки и арифметика цены.
+//
+// Тариф лежит в базе проекта документом tariff и правится без выкладки кода.
+// Если документа нет, функция кладет туда значения по умолчанию.
+// Чтобы вернуть тариф к исходному, документ достаточно удалить: Db.delete.
 
 var CARD_KEY = "card";
+var TARIFF_KEY = "tariff";
+var DB_INTEGRATION = "1000156248-my-joz";
 
 var PRIORITY = [
   "type", "area", "wall_material", "year",
   "roof_material", "floors", "address", "owner"
 ];
 
-var BASE_RATE = 100;
-
-var WALL_K = {
-  "кирпич": 1.0, "блок": 1.0, "металл": 1.0,
-  "брус": 1.15, "бревно": 1.2, "каркас": 1.3
-};
-
-var ROOF_K = {
-  "металлочерепица": 1.0, "профнастил": 1.0,
-  "шифер": 1.1, "мягкая кровля": 1.15, "дерево": 1.25
-};
-
 var REQUIRED_FOR_PRICE = ["type", "area", "wall_material", "year"];
+
+// Ступени по году идут сверху вниз: берется первая, у которой from не больше года.
+function defaultTariff() {
+  return {
+    base: 100,
+    wall: {
+      "кирпич": 1.0, "блок": 1.0, "металл": 1.0,
+      "брус": 1.15, "бревно": 1.2, "каркас": 1.3
+    },
+    roof: {
+      "металлочерепица": 1.0, "профнастил": 1.0,
+      "шифер": 1.1, "мягкая кровля": 1.15, "дерево": 1.25
+    },
+    year: [
+      { from: 2016, k: 1.0 },
+      { from: 2000, k: 1.1 },
+      { from: 1980, k: 1.2 },
+      { from: 0, k: 1.3 }
+    ],
+    floors: { from: 3, k: 1.1 }
+  };
+}
 
 function emptyCard() {
   var card = {};
@@ -56,19 +72,60 @@ function missingFields(card) {
   });
 }
 
-function yearK(year) {
-  if (year > 2015) return 1.0;
-  if (year >= 2000) return 1.1;
-  if (year >= 1980) return 1.2;
-  return 1.3;
+// Документ из базы приходит либо как есть, либо обернутым в поле value -
+// контракт функции этого не уточняет, поэтому принимаем оба варианта.
+function documentValue(document) {
+  if (!document || typeof document !== "object") {
+    return null;
+  }
+  return document.value && typeof document.value === "object" ? document.value : document;
 }
 
-function floorsK(floors) {
-  if (floors === null || floors === undefined) return 1.0;
-  return floors >= 3 ? 1.1 : 1.0;
+function cardFromDocument(document) {
+  var source = documentValue(document);
+  if (!source) {
+    return null;
+  }
+  for (var i = 0; i < PRIORITY.length; i++) {
+    if (Object.prototype.hasOwnProperty.call(source, PRIORITY[i])) {
+      return source;
+    }
+  }
+  return null;
 }
 
-function calcPrice(card) {
+// Битый тариф не должен ронять расчет: такой документ игнорируется и не перезаписывается.
+function tariffFromDocument(document) {
+  var source = documentValue(document);
+  if (!source) {
+    return null;
+  }
+  var ok = typeof source.base === "number" &&
+    source.wall && typeof source.wall === "object" &&
+    source.roof && typeof source.roof === "object" &&
+    Array.isArray(source.year) && source.year.length > 0 &&
+    source.floors && typeof source.floors === "object";
+  return ok ? source : null;
+}
+
+function yearK(year, steps) {
+  for (var i = 0; i < steps.length; i++) {
+    if (year >= steps[i].from) {
+      return steps[i].k;
+    }
+  }
+  return 1.0;
+}
+
+function floorsK(floors, rule) {
+  if (floors === null || floors === undefined) {
+    return 1.0;
+  }
+  return floors >= rule.from ? rule.k : 1.0;
+}
+
+function calcPrice(card, tariff) {
+  var rates = tariff || defaultTariff();
   var hasAll = REQUIRED_FOR_PRICE.every(function (field) {
     return isFilled(card[field]);
   });
@@ -77,12 +134,12 @@ function calcPrice(card) {
   }
 
   var breakdown = {
-    base: BASE_RATE,
+    base: rates.base,
     area: card.area,
-    k_wall: WALL_K[card.wall_material] != null ? WALL_K[card.wall_material] : 1.0,
-    k_year: yearK(card.year),
-    k_roof: isFilled(card.roof_material) && ROOF_K[card.roof_material] != null ? ROOF_K[card.roof_material] : 1.0,
-    k_floors: floorsK(card.floors)
+    k_wall: rates.wall[card.wall_material] != null ? rates.wall[card.wall_material] : 1.0,
+    k_year: yearK(card.year, rates.year),
+    k_roof: isFilled(card.roof_material) && rates.roof[card.roof_material] != null ? rates.roof[card.roof_material] : 1.0,
+    k_floors: floorsK(card.floors, rates.floors)
   };
 
   var value = Math.round(
@@ -97,42 +154,47 @@ function calcPrice(card) {
   };
 }
 
-function buildPayload(card, stored) {
+function buildPayload(card, tariff, meta) {
   var missing = missingFields(card);
+  var extra = meta || {};
   return {
     card: card,
     missing: missing,
-    price: calcPrice(card),
+    price: calcPrice(card, tariff),
     isComplete: missing.length === 0,
-    stored: stored === true
+    stored: extra.stored === true,
+    tariffSource: extra.tariffSource || "defaults"
   };
 }
 
-// Документ из SessionDb приходит либо как есть, либо обернутым в поле value -
-// контракт функции этого не уточняет, поэтому принимаем оба варианта.
-function cardFromDocument(document) {
-  if (!document || typeof document !== "object") {
-    return null;
+function readTariff() {
+  var document = Db.get({ dbIntegration: DB_INTEGRATION, documentKey: TARIFF_KEY });
+  var tariff = tariffFromDocument(document);
+  if (tariff) {
+    return { tariff: tariff, source: "db" };
   }
-  var source = document.value && typeof document.value === "object" ? document.value : document;
-  for (var i = 0; i < PRIORITY.length; i++) {
-    if (Object.prototype.hasOwnProperty.call(source, PRIORITY[i])) {
-      return source;
-    }
+  if (document) {
+    Log.warn({ message: "Тариф в базе не читается, считаю по умолчанию", data: { document: document } });
+    return { tariff: defaultTariff(), source: "defaults" };
   }
-  return null;
+  var seeded = defaultTariff();
+  Db.put({ dbIntegration: DB_INTEGRATION, documentKey: TARIFF_KEY, value: seeded });
+  return { tariff: seeded, source: "seeded" };
 }
 
 // Карточка едет на страницу отдельным сообщением: страница вынимает JSON-блок
 // из любой реплики, а текст вопроса берет из ответа агента.
 function run(heard) {
-  var document = SessionDb.get({ documentKey: CARD_KEY });
-  var stored = cardFromDocument(document);
+  var stored = cardFromDocument(SessionDb.get({ documentKey: CARD_KEY }));
   var merged = mergeCard(stored || emptyCard(), heard);
-
   SessionDb.put({ documentKey: CARD_KEY, value: merged });
 
-  var payload = buildPayload(merged, stored !== null);
+  var rates = readTariff();
+  var payload = buildPayload(merged, rates.tariff, {
+    stored: stored !== null,
+    tariffSource: rates.source
+  });
+
   Log.info({ message: "Карточка обновлена", data: payload });
   Reactions.sendText({ text: "```json\n" + JSON.stringify(payload) + "\n```" });
 
@@ -141,12 +203,14 @@ function run(heard) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    defaultTariff: defaultTariff,
     emptyCard: emptyCard,
     mergeCard: mergeCard,
     missingFields: missingFields,
     calcPrice: calcPrice,
     buildPayload: buildPayload,
-    cardFromDocument: cardFromDocument
+    cardFromDocument: cardFromDocument,
+    tariffFromDocument: tariffFromDocument
   };
 } else {
   return run({
