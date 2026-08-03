@@ -205,13 +205,10 @@ textForm.addEventListener("submit", function (event) {
   send({ text: value });
 });
 
-resetBtn.addEventListener("click", async function () {
-  await fetch("/api/reset", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId: clientId })
-  });
-  // Карточка живет в SessionDb платформы, поэтому новый прогон начинаем с новой сессии.
+// Сброс локальный и мгновенный. Карточка живет в SessionDb платформы, привязанной
+// к клиенту, поэтому новый clientId и есть новый прогон. Событие в платформу не шлем:
+// триггера на него нет, агент принимает его за реплику и отвечает вопросом.
+resetBtn.addEventListener("click", function () {
   clientId = "demo-" + Math.random().toString(36).slice(2, 10);
   localStorage.setItem("clientId", clientId);
   messagesEl.innerHTML = "";
