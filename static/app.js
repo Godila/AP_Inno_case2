@@ -22,11 +22,11 @@ const policyEl = document.getElementById("policy");
 const assessmentEl = document.getElementById("assessment");
 const archiveEl = document.getElementById("archive");
 
-let clientId = localStorage.getItem("clientId");
-if (!clientId) {
-  clientId = "demo-" + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem("clientId", clientId);
-}
+// Новый идентификатор на каждую загрузку страницы. Раньше он хранился в localStorage,
+// и получалось, что лента сообщений после F5 пустая, а карточка в SessionDb платформы
+// живая: в свежий на вид разговор подмешивались адрес и собственник из прошлого прогона.
+// Переписка все равно не переживает перезагрузку, так что и сессии незачем.
+let clientId = "demo-" + Math.random().toString(36).slice(2, 10);
 
 let recorder = null;
 let chunks = [];
@@ -542,7 +542,6 @@ textForm.addEventListener("submit", function (event) {
 // триггера на него нет, агент принимает его за реплику и отвечает вопросом.
 resetBtn.addEventListener("click", function () {
   clientId = "demo-" + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem("clientId", clientId);
   messagesEl.innerHTML = "";
   previousCard = {};
   currentAuthor = AUTHORS.collect;
