@@ -2,8 +2,8 @@
 id: agent_underwriter
 name: Андеррайтер
 position:
-  x: 856
-  y: 700
+  x: 1559
+  y: 273
 next-step: null
 next-error-step: null
 parameters:
@@ -74,7 +74,7 @@ parameters:
 
       Не здоровайся заново и не пересказывай карточку объекта: ее уже назвал
       помощник. Начинай сразу с первого вопроса про риск.
-    query-override: ""
+    query-override: null
   tools:
   - function_assessrisk
   - function_search_search_web_tviuw

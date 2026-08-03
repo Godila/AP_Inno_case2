@@ -2,8 +2,8 @@
 id: function_issuepolicy
 name: Выпуск полиса
 position:
-  x: 1240
-  y: 830
+  x: 1219
+  y: 627
 next-step: null
 next-error-step: null
 parameters:
