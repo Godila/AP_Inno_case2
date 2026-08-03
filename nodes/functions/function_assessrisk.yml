@@ -1,0 +1,27 @@
+---
+id: function_assessrisk
+name: Оценка риска
+position:
+  x: 1240
+  y: 700
+next-step: null
+next-error-step: null
+parameters:
+  type: USER
+  collection: my
+  function: assessRisk
+  is-tool: true
+  context-config: null
+  parameters:
+    heating:
+      type: STRING
+      value: null
+      filled-ai: true
+    security:
+      type: STRING
+      value: null
+      filled-ai: true
+    occupancy:
+      type: STRING
+      value: null
+      filled-ai: true

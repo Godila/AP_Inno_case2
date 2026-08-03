@@ -11,6 +11,7 @@
 // в карточке видно почему. Эталонное содержимое документа: ap/tariff.json.
 
 var CARD_KEY = "card";
+var PRICE_KEY = "price";
 var TARIFF_KEY = "tariff";
 var DB_INTEGRATION = "1000156248-my-joz";
 
@@ -189,6 +190,10 @@ function run(heard) {
     tariffSource: rates.source,
     tariffDoc: rates.keys
   });
+
+  // Премию кладем в сессию отдельно: андеррайтер считает от нее, а формула цены
+  // должна остаться в одном месте - здесь.
+  SessionDb.put({ documentKey: PRICE_KEY, value: payload.price });
 
   Log.info({ message: "Карточка обновлена", data: payload });
   Reactions.sendText({ text: "```json\n" + JSON.stringify(payload) + "\n```" });

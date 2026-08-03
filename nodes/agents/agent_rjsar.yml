@@ -7,7 +7,7 @@ position:
 # Переход по достижении цели. Это и есть связь между агентами на холсте.
 # Передача запроса (handoff-agents) - другой механизм, для случая когда агент
 # не справился; держать оба сразу нельзя, будет двойной переход.
-next-step: agent_stub
+next-step: agent_underwriter
 next-error-step: null
 parameters:
   llm-model-key: 1000156248-deepseek_deepseekv4f-yul

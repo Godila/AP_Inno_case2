@@ -1,0 +1,25 @@
+---
+id: assessRisk
+name: assessRisk
+description: >-
+  Сохраняет риск-профиль объекта и выносит решение по заявке: принять, эскалировать
+  или отказать. Вызывай после каждой реплики агента. Передавай только те параметры,
+  которые прозвучали в этой реплике, остальные не передавай.
+response-description: >-
+  Объект с полями decision (accepted, escalated, declined, incomplete, unavailable),
+  missing (незаполненные поля риск-профиля), reasons (сработавшие правила с
+  коэффициентами), basePrice, price, totalK, sumInsured и franchise.
+parameters:
+  - name: heating
+    type: STRING
+    required: false
+    description: "Отопление, одно из значений: печь, камин, электричество, газ, нет"
+  - name: security
+    type: STRING
+    required: false
+    description: "Охрана объекта, одно из значений: сигнализация, охрана, нет"
+  - name: occupancy
+    type: STRING
+    required: false
+    description: "Режим проживания, одно из значений: постоянно, сезонно"
+language: JAVASCRIPT

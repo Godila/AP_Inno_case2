@@ -1,0 +1,19 @@
+---
+id: function_issuepolicy
+name: Выпуск полиса
+position:
+  x: 1240
+  y: 830
+next-step: null
+next-error-step: null
+parameters:
+  type: USER
+  collection: policy
+  function: issuePolicy
+  is-tool: true
+  parameters: {}
+  context-config: null
+  hitl-tool-config:
+    enabled: true
+    approval-question: Выпустить полис на этих условиях?
+  custom-headers: null
