@@ -94,18 +94,32 @@ function cardFromDocument(document) {
   return null;
 }
 
-// Битый тариф не должен ронять расчет: такой документ игнорируется и не перезаписывается.
-function tariffFromDocument(document) {
-  var source = documentValue(document);
-  if (!source) {
-    return null;
-  }
-  var ok = typeof source.base === "number" &&
+var TARIFF_FIELDS = ["base", "wall", "roof", "year", "floors"];
+
+function isValidTariff(source) {
+  return typeof source.base === "number" &&
     source.wall && typeof source.wall === "object" &&
     source.roof && typeof source.roof === "object" &&
     Array.isArray(source.year) && source.year.length > 0 &&
     source.floors && typeof source.floors === "object";
-  return ok ? source : null;
+}
+
+// Три состояния, а не два. Db.get на пустом ключе может вернуть служебную обертку
+// вместо null, и принять ее за испорченный тариф нельзя: тогда документ никогда
+// не создастся. Испорченным считается только документ, где тарифные поля есть,
+// но не сходятся - такой не перезаписываем, чтобы не стереть правку с опечаткой.
+function classifyTariff(document) {
+  var source = documentValue(document);
+  var keys = source ? Object.keys(source) : null;
+  var known = source && TARIFF_FIELDS.some(function (field) {
+    return Object.prototype.hasOwnProperty.call(source, field);
+  });
+  if (!known) {
+    return { state: "absent", tariff: null, keys: keys };
+  }
+  return isValidTariff(source)
+    ? { state: "ok", tariff: source, keys: null }
+    : { state: "broken", tariff: null, keys: keys };
 }
 
 function yearK(year, steps) {
@@ -163,23 +177,26 @@ function buildPayload(card, tariff, meta) {
     price: calcPrice(card, tariff),
     isComplete: missing.length === 0,
     stored: extra.stored === true,
-    tariffSource: extra.tariffSource || "defaults"
+    tariffSource: extra.tariffSource || "defaults",
+    tariffDoc: extra.tariffDoc || null
   };
 }
 
 function readTariff() {
   var document = Db.get({ dbIntegration: DB_INTEGRATION, documentKey: TARIFF_KEY });
-  var tariff = tariffFromDocument(document);
-  if (tariff) {
-    return { tariff: tariff, source: "db" };
+  var found = classifyTariff(document);
+
+  if (found.state === "ok") {
+    return { tariff: found.tariff, source: "db", keys: null };
   }
-  if (document) {
+  if (found.state === "broken") {
     Log.warn({ message: "Тариф в базе не читается, считаю по умолчанию", data: { document: document } });
-    return { tariff: defaultTariff(), source: "defaults" };
+    return { tariff: defaultTariff(), source: "defaults", keys: found.keys };
   }
+
   var seeded = defaultTariff();
   Db.put({ dbIntegration: DB_INTEGRATION, documentKey: TARIFF_KEY, value: seeded });
-  return { tariff: seeded, source: "seeded" };
+  return { tariff: seeded, source: "seeded", keys: found.keys };
 }
 
 // Карточка едет на страницу отдельным сообщением: страница вынимает JSON-блок
@@ -192,7 +209,8 @@ function run(heard) {
   var rates = readTariff();
   var payload = buildPayload(merged, rates.tariff, {
     stored: stored !== null,
-    tariffSource: rates.source
+    tariffSource: rates.source,
+    tariffDoc: rates.keys
   });
 
   Log.info({ message: "Карточка обновлена", data: payload });
@@ -210,7 +228,7 @@ if (typeof module !== "undefined" && module.exports) {
     calcPrice: calcPrice,
     buildPayload: buildPayload,
     cardFromDocument: cardFromDocument,
-    tariffFromDocument: tariffFromDocument
+    classifyTariff: classifyTariff
   };
 } else {
   return run({
