@@ -18,6 +18,7 @@ const fileInput = document.getElementById("file");
 const textForm = document.getElementById("text-form");
 const textInput = document.getElementById("text");
 const resetBtn = document.getElementById("reset");
+const policyEl = document.getElementById("policy");
 
 let clientId = localStorage.getItem("clientId");
 if (!clientId) {
@@ -28,13 +29,57 @@ if (!clientId) {
 let recorder = null;
 let chunks = [];
 let previousCard = {};
+let policyUrl = null;
+// Автор держится между ходами: андеррайтер может ответить и без вызова инструмента,
+// тогда нового этапа в ходе не будет.
+let currentAuthor = { role: "assistant", name: "Помощник" };
 
-function addMessage(role, text) {
+function scrollDown() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function addMessage(role, text, author) {
   const node = document.createElement("div");
   node.className = "msg " + role;
-  node.textContent = text;
+  if (author) {
+    const label = document.createElement("div");
+    label.className = "author";
+    label.textContent = author;
+    node.appendChild(label);
+  }
+  const body = document.createElement("div");
+  body.textContent = text;
+  node.appendChild(body);
   messagesEl.appendChild(node);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+  scrollDown();
+}
+
+// Пока идет ход, в ленте висит пузырь с точками: сорок секунд тишины выглядят
+// как зависшая страница.
+function showPending(author) {
+  hidePending();
+  const node = document.createElement("div");
+  node.className = "msg bot pending " + (author === "Андеррайтер" ? "underwriter" : "assistant");
+  node.id = "pending";
+  const label = document.createElement("div");
+  label.className = "author";
+  label.textContent = author;
+  node.appendChild(label);
+  const dots = document.createElement("div");
+  dots.className = "dots";
+  for (let i = 0; i < 3; i++) {
+    dots.appendChild(document.createElement("i"));
+  }
+  node.appendChild(dots);
+  messagesEl.appendChild(node);
+  scrollDown();
+}
+
+function hidePending() {
+  const node = document.getElementById("pending");
+  if (node) {
+    node.remove();
+  }
 }
 
 function renderCard(card) {
@@ -80,20 +125,25 @@ function replyTexts(response) {
   return texts;
 }
 
-function extractPayload(response) {
-  const texts = replyTexts(response);
-  for (const text of texts) {
-    const match = text.match(/```json\s*([\s\S]+?)```/);
-    if (match) {
-      try {
-        return JSON.parse(match[1]);
-      } catch (error) {
-        return null;
-      }
-    }
+function parseBlock(text) {
+  const match = text.match(/```json\s*([\s\S]+?)```/);
+  if (!match) {
+    return null;
   }
-  return null;
+  try {
+    return JSON.parse(match[1]);
+  } catch (error) {
+    return null;
+  }
 }
+
+// Автор реплики определяется по этапу из последнего JSON-блока: инструмент шлет свой
+// блок перед тем, как агент заговорит, поэтому порядок реплик в ходе всегда такой.
+const AUTHORS = {
+  collect: { role: "assistant", name: "Помощник" },
+  risk: { role: "underwriter", name: "Андеррайтер" },
+  issued: { role: "underwriter", name: "Андеррайтер" }
+};
 
 // Агент иногда отвечает с markdown-разметкой, а сообщения выводятся как обычный текст,
 // поэтому звездочки убираем здесь: это надежнее, чем просить модель их не ставить.
@@ -105,15 +155,74 @@ function cleanText(text) {
     .trim();
 }
 
+function applyPayload(payload) {
+  if (payload.card) {
+    renderCard(payload.card);
+    renderPrice(payload.price);
+  }
+  if (payload.policy && payload.pdfBase64) {
+    renderPolicy(payload.policy, payload.pdfBase64);
+  }
+}
+
 // Реплики не склеиваем: в одном ходе их может быть несколько, в том числе от разных
-// агентов, и каждая должна быть отдельным сообщением.
-function botTexts(response) {
-  return replyTexts(response).map(cleanText).filter(function (text) { return text; });
+// агентов, и каждая должна быть отдельным сообщением со своим автором.
+function renderTurn(response) {
+  replyTexts(response).forEach(function (raw) {
+    const payload = parseBlock(raw);
+    if (payload) {
+      currentAuthor = AUTHORS[payload.stage] || currentAuthor;
+      applyPayload(payload);
+    }
+    const text = cleanText(raw);
+    if (text) {
+      addMessage("bot " + currentAuthor.role, text, currentAuthor.name);
+    }
+  });
+}
+
+function clearPolicy() {
+  if (policyUrl) {
+    URL.revokeObjectURL(policyUrl);
+    policyUrl = null;
+  }
+  policyEl.innerHTML = "";
+}
+
+// PDF показываем из Blob, а не из data-URI: браузеры не дают открывать
+// data:application/pdf ни во фрейме, ни по ссылке.
+function renderPolicy(policy, base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  if (policyUrl) {
+    URL.revokeObjectURL(policyUrl);
+  }
+  policyUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+
+  policyEl.innerHTML = "";
+  const title = document.createElement("h2");
+  title.textContent = "Полис " + policy.number;
+  const frame = document.createElement("iframe");
+  frame.className = "preview";
+  frame.src = policyUrl;
+  frame.title = "Полис " + policy.number;
+  const link = document.createElement("a");
+  link.className = "download";
+  link.href = policyUrl;
+  link.download = policy.number + ".pdf";
+  link.textContent = "Скачать PDF";
+  policyEl.appendChild(title);
+  policyEl.appendChild(frame);
+  policyEl.appendChild(link);
 }
 
 async function send(body) {
   statusEl.textContent = "Обрабатываю…";
   recordBtn.disabled = true;
+  showPending(currentAuthor.name);
   try {
     const response = await fetch("/api/message", {
       method: "POST",
@@ -126,17 +235,11 @@ async function send(body) {
       return;
     }
     const result = await response.json();
-    const payload = extractPayload(result);
-    botTexts(result).forEach(function (text) {
-      addMessage("bot", text);
-    });
-    if (payload) {
-      renderCard(payload.card);
-      renderPrice(payload.price);
-    }
+    renderTurn(result);
   } catch (error) {
     addMessage("bot", "Сеть недоступна: " + error.message);
   } finally {
+    hidePending();
     statusEl.textContent = "";
     recordBtn.disabled = false;
   }
@@ -218,11 +321,13 @@ resetBtn.addEventListener("click", function () {
   localStorage.setItem("clientId", clientId);
   messagesEl.innerHTML = "";
   previousCard = {};
+  currentAuthor = AUTHORS.collect;
+  clearPolicy();
   renderCard(null);
   renderPrice(null);
-  addMessage("bot", "Опишите объект страхования.");
+  addMessage("bot assistant", "Опишите объект страхования.", "Помощник");
 });
 
 renderCard(null);
 renderPrice(null);
-addMessage("bot", "Опишите объект страхования.");
+addMessage("bot assistant", "Опишите объект страхования.", "Помощник");
