@@ -29,7 +29,7 @@ parameters:
       Ничего другого не делай и вопросов не задавай.
     query-override: ""
   tools:
-    - function_checkarea
+    - function_search_search_web_tviuw
   handoff-agents:
     allowed-any: false
     allowed-agent-node-ids: []
