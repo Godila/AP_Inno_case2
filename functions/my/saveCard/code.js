@@ -6,8 +6,9 @@
 // Здесь только детерминированная часть - слияние карточки и арифметика цены.
 //
 // Тариф лежит в базе проекта документом tariff и правится без выкладки кода.
-// Если документа нет, функция кладет туда значения по умолчанию.
-// Чтобы вернуть тариф к исходному, документ достаточно удалить: Db.delete.
+// Копии ставок в коде нет намеренно: захардкоженный запасной тариф молча подменял бы
+// настройку и расходился с ней. Нет документа или он испорчен - цена не считается,
+// в карточке видно почему. Эталонное содержимое документа: ap/tariff.json.
 
 var CARD_KEY = "card";
 var TARIFF_KEY = "tariff";
@@ -19,28 +20,6 @@ var PRIORITY = [
 ];
 
 var REQUIRED_FOR_PRICE = ["type", "area", "wall_material", "year"];
-
-// Ступени по году идут сверху вниз: берется первая, у которой from не больше года.
-function defaultTariff() {
-  return {
-    base: 100,
-    wall: {
-      "кирпич": 1.0, "блок": 1.0, "металл": 1.0,
-      "брус": 1.15, "бревно": 1.2, "каркас": 1.3
-    },
-    roof: {
-      "металлочерепица": 1.0, "профнастил": 1.0,
-      "шифер": 1.1, "мягкая кровля": 1.15, "дерево": 1.25
-    },
-    year: [
-      { from: 2016, k: 1.0 },
-      { from: 2000, k: 1.1 },
-      { from: 1980, k: 1.2 },
-      { from: 0, k: 1.3 }
-    ],
-    floors: { from: 3, k: 1.1 }
-  };
-}
 
 function emptyCard() {
   var card = {};
@@ -104,10 +83,10 @@ function isValidTariff(source) {
     source.floors && typeof source.floors === "object";
 }
 
-// Три состояния, а не два. Db.get на пустом ключе может вернуть служебную обертку
-// вместо null, и принять ее за испорченный тариф нельзя: тогда документ никогда
-// не создастся. Испорченным считается только документ, где тарифные поля есть,
-// но не сходятся - такой не перезаписываем, чтобы не стереть правку с опечаткой.
+// Три состояния, а не два. Db.get на пустом ключе возвращает служебную обертку
+// {key, value, createdAt, updatedAt} вместо null, поэтому отсутствие документа
+// определяется по составу данных. Испорченным считается документ, где тарифные
+// поля есть, но не сходятся: в карточке это видно отдельным состоянием.
 function classifyTariff(document) {
   var source = documentValue(document);
   var keys = source ? Object.keys(source) : null;
@@ -139,8 +118,8 @@ function floorsK(floors, rule) {
 }
 
 function calcPrice(card, tariff) {
-  var rates = tariff || defaultTariff();
-  var hasAll = REQUIRED_FOR_PRICE.every(function (field) {
+  var rates = tariff;
+  var hasAll = rates && REQUIRED_FOR_PRICE.every(function (field) {
     return isFilled(card[field]);
   });
   if (!hasAll) {
@@ -177,7 +156,7 @@ function buildPayload(card, tariff, meta) {
     price: calcPrice(card, tariff),
     isComplete: missing.length === 0,
     stored: extra.stored === true,
-    tariffSource: extra.tariffSource || "defaults",
+    tariffSource: extra.tariffSource || "absent",
     tariffDoc: extra.tariffDoc || null
   };
 }
@@ -189,14 +168,12 @@ function readTariff() {
   if (found.state === "ok") {
     return { tariff: found.tariff, source: "db", keys: null };
   }
-  if (found.state === "broken") {
-    Log.warn({ message: "Тариф в базе не читается, считаю по умолчанию", data: { document: document } });
-    return { tariff: defaultTariff(), source: "defaults", keys: found.keys };
-  }
 
-  var seeded = defaultTariff();
-  Db.put({ dbIntegration: DB_INTEGRATION, documentKey: TARIFF_KEY, value: seeded });
-  return { tariff: seeded, source: "seeded", keys: found.keys };
+  Log.error({
+    message: "Тариф в базе не настроен, цена не считается",
+    data: { state: found.state, keys: found.keys }
+  });
+  return { tariff: null, source: found.state, keys: found.keys };
 }
 
 // Карточка едет на страницу отдельным сообщением: страница вынимает JSON-блок
@@ -221,7 +198,6 @@ function run(heard) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    defaultTariff: defaultTariff,
     emptyCard: emptyCard,
     mergeCard: mergeCard,
     missingFields: missingFields,
