@@ -13,6 +13,10 @@ main { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; padding: 16px 2
 .author { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #6366f1; margin-bottom: 4px; }
 .msg.underwriter .author { color: #b45309; }
 
+/* След вызова внешнего инструмента: не реплика агента, а отметка о действии. */
+.msg.search { align-self: stretch; max-width: 100%; background: #f8fafc; border: 1px dashed #cbd5e1; color: #475569; font-size: 13px; }
+.msg.search .author { color: #64748b; }
+
 /* Пузырь с точками вместо тишины: ход с двумя агентами идет до сорока секунд. */
 .dots { display: flex; gap: 4px; padding: 2px 0; }
 .dots i { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: blink 1.2s infinite; }

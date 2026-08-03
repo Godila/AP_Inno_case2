@@ -155,6 +155,37 @@ function cleanText(text) {
     .trim();
 }
 
+// Вызов MCP-поиска сам по себе на страницу ничего не шлет, поэтому андеррайтер
+// объявляет запрос отдельной строкой, а страница выносит ее в заметный след.
+const SEARCH_LINE = /^\s*ПОИСК:\s*(.+?)\s*$/;
+
+function splitSearch(text) {
+  const queries = [];
+  const rest = text.split("\n").filter(function (line) {
+    const match = line.match(SEARCH_LINE);
+    if (match) {
+      queries.push(match[1]);
+      return false;
+    }
+    return true;
+  });
+  return { queries: queries, text: rest.join("\n").trim() };
+}
+
+function addSearch(query) {
+  const node = document.createElement("div");
+  node.className = "msg search";
+  const label = document.createElement("div");
+  label.className = "author";
+  label.textContent = "Открытые источники · MCP";
+  const body = document.createElement("div");
+  body.textContent = "Ищу: " + query;
+  node.appendChild(label);
+  node.appendChild(body);
+  messagesEl.appendChild(node);
+  scrollDown();
+}
+
 function applyPayload(payload) {
   if (payload.card) {
     renderCard(payload.card);
@@ -174,9 +205,10 @@ function renderTurn(response) {
       currentAuthor = AUTHORS[payload.stage] || currentAuthor;
       applyPayload(payload);
     }
-    const text = cleanText(raw);
-    if (text) {
-      addMessage("bot " + currentAuthor.role, text, currentAuthor.name);
+    const parts = splitSearch(cleanText(raw));
+    parts.queries.forEach(addSearch);
+    if (parts.text) {
+      addMessage("bot " + currentAuthor.role, parts.text, currentAuthor.name);
     }
   });
 }
