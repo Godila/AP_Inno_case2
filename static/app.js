@@ -30,6 +30,8 @@ let recorder = null;
 let chunks = [];
 let previousCard = {};
 let policyUrl = null;
+let lastPolicy = null;
+let handoffNudged = false;
 // Автор держится между ходами: андеррайтер может ответить и без вызова инструмента,
 // тогда нового этапа в ходе не будет.
 let currentAuthor = { role: "assistant", name: "Помощник" };
@@ -186,31 +188,52 @@ function addSearch(query) {
   scrollDown();
 }
 
+// Реквизиты полиса и сам бланк приходят разными репликами, поэтому рисуем по мере
+// поступления: сначала карточка полиса, потом в нее добавляется превью.
 function applyPayload(payload) {
   if (payload.card) {
     renderCard(payload.card);
     renderPrice(payload.price);
   }
-  if (payload.policy && payload.pdfBase64) {
-    renderPolicy(payload.policy, payload.pdfBase64);
+  if (payload.policy) {
+    lastPolicy = payload.policy;
+    renderPolicy();
+  }
+  if (payload.pdfBase64) {
+    setPdf(payload.pdfBase64);
+    renderPolicy();
   }
 }
 
 // Реплики не склеиваем: в одном ходе их может быть несколько, в том числе от разных
 // агентов, и каждая должна быть отдельным сообщением со своим автором.
 function renderTurn(response) {
+  let handoff = false;
+  let spoken = 0;
   replyTexts(response).forEach(function (raw) {
     const payload = parseBlock(raw);
     if (payload) {
       currentAuthor = AUTHORS[payload.stage] || currentAuthor;
+      if (payload.stage === "collect" && payload.isComplete) {
+        handoff = true;
+      }
       applyPayload(payload);
     }
     const parts = splitSearch(cleanText(raw));
     parts.queries.forEach(addSearch);
     if (parts.text) {
       addMessage("bot " + currentAuthor.role, parts.text, currentAuthor.name);
+      if (handoff) {
+        spoken += 1;
+        // Итог по карточке - последняя реплика консультанта. Все, что после нее,
+        // говорит уже андеррайтер, даже если он не успел вызвать инструмент.
+        if (spoken === 1) {
+          currentAuthor = AUTHORS.risk;
+        }
+      }
     }
   });
+  return { handoff: handoff, underwriterSpoke: spoken > 1 };
 }
 
 function clearPolicy() {
@@ -218,12 +241,13 @@ function clearPolicy() {
     URL.revokeObjectURL(policyUrl);
     policyUrl = null;
   }
+  lastPolicy = null;
   policyEl.innerHTML = "";
 }
 
 // PDF показываем из Blob, а не из data-URI: браузеры не дают открывать
 // data:application/pdf ни во фрейме, ни по ссылке.
-function renderPolicy(policy, base64) {
+function setPdf(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -233,25 +257,45 @@ function renderPolicy(policy, base64) {
     URL.revokeObjectURL(policyUrl);
   }
   policyUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+}
 
+function renderPolicy() {
+  if (!lastPolicy) {
+    return;
+  }
   policyEl.innerHTML = "";
   const title = document.createElement("h2");
-  title.textContent = "Полис " + policy.number;
+  title.textContent = "Полис " + lastPolicy.number;
+  policyEl.appendChild(title);
+
+  const term = document.createElement("div");
+  term.className = "term";
+  term.textContent = "с " + lastPolicy.issuedAt + " по " + lastPolicy.expiresAt;
+  policyEl.appendChild(term);
+
+  if (!policyUrl) {
+    const note = document.createElement("div");
+    note.className = "term";
+    note.textContent = "Бланк готовится…";
+    policyEl.appendChild(note);
+    return;
+  }
+
   const frame = document.createElement("iframe");
   frame.className = "preview";
   frame.src = policyUrl;
-  frame.title = "Полис " + policy.number;
+  frame.title = "Полис " + lastPolicy.number;
   const link = document.createElement("a");
   link.className = "download";
   link.href = policyUrl;
-  link.download = policy.number + ".pdf";
+  link.download = lastPolicy.number + ".pdf";
   link.textContent = "Скачать PDF";
-  policyEl.appendChild(title);
   policyEl.appendChild(frame);
   policyEl.appendChild(link);
 }
 
 async function send(body) {
+  let turn = null;
   statusEl.textContent = "Обрабатываю…";
   recordBtn.disabled = true;
   showPending(currentAuthor.name);
@@ -267,13 +311,22 @@ async function send(body) {
       return;
     }
     const result = await response.json();
-    renderTurn(result);
+    turn = renderTurn(result);
   } catch (error) {
     addMessage("bot", "Сеть недоступна: " + error.message);
   } finally {
     hidePending();
     statusEl.textContent = "";
     recordBtn.disabled = false;
+  }
+
+  // Платформа передает управление андеррайтеру по достижении цели консультанта,
+  // но заговорить в том же ходе он успевает не всегда. Если после итога по карточке
+  // никто не ответил, подталкиваем ход сами - иначе агенту пришлось бы писать
+  // "жду", чтобы разговор поехал дальше.
+  if (turn && turn.handoff && !turn.underwriterSpoke && !handoffNudged) {
+    handoffNudged = true;
+    await send({ text: "продолжаем" });
   }
 }
 
@@ -354,6 +407,7 @@ resetBtn.addEventListener("click", function () {
   messagesEl.innerHTML = "";
   previousCard = {};
   currentAuthor = AUTHORS.collect;
+  handoffNudged = false;
   clearPolicy();
   renderCard(null);
   renderPrice(null);
