@@ -21,10 +21,12 @@ class PolicyStore:
     Имя случайное, а не номер полиса: номер идет подряд и легко подбирается,
     а ссылка на бланк отдается без авторизации.
 
-    Рядом с бланком лежит запись о последнем полисе клиента. Она нужна потому,
-    что реплики функции выпуска до канала не доезжают, и страница забирает
-    реквизиты отсюда, а не из диалога.
+    Рядом с бланками лежит реестр выданных полисов. Он нужен потому, что реплики
+    функции выпуска до канала не доезжают, и страница забирает реквизиты отсюда,
+    а не из диалога. Он же показывается в интерфейсе как архив.
     """
+
+    ARCHIVE_LIMIT = 50
 
     def __init__(self, directory: str, max_bytes: int, ttl_hours: int):
         self.directory = Path(directory)
@@ -49,27 +51,39 @@ class PolicyStore:
             raise FileNotFoundError(name)
         return candidate
 
-    def _record_path(self, client_id: str) -> Path:
-        if not CLIENT_ID.match(client_id or ""):
-            raise InvalidClientId(client_id)
-        return self.records / f"{client_id}.json"
+    def _archive_path(self) -> Path:
+        return self.records / "archive.json"
 
-    def save_record(self, client_id: str, record: dict) -> None:
-        path = self._record_path(client_id)
-        path.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
-
-    def latest(self, client_id: str) -> dict:
-        path = self._record_path(client_id)
+    def archive(self) -> list:
+        path = self._archive_path()
         if not path.is_file():
-            raise FileNotFoundError(client_id)
+            return []
         return json.loads(path.read_text(encoding="utf-8"))
 
+    def save_record(self, client_id: str, record: dict) -> None:
+        if not CLIENT_ID.match(client_id or ""):
+            raise InvalidClientId(client_id)
+        entry = dict(record)
+        entry["clientId"] = client_id
+        items = [entry] + self.archive()
+        self._archive_path().write_text(
+            json.dumps(items[:self.ARCHIVE_LIMIT], ensure_ascii=False), encoding="utf-8"
+        )
+
+    def latest(self, client_id: str) -> dict:
+        if not CLIENT_ID.match(client_id or ""):
+            raise InvalidClientId(client_id)
+        for entry in self.archive():
+            if entry.get("clientId") == client_id:
+                return entry
+        raise FileNotFoundError(client_id)
+
     def purge_expired(self, now: float = None) -> int:
+        """Чистит только бланки. Реестр не трогаем: он и есть ценность."""
         moment = now if now is not None else time.time()
         removed = 0
-        for folder in (self.directory, self.records):
-            for item in folder.iterdir():
-                if item.is_file() and moment - item.stat().st_mtime > self.ttl_seconds:
-                    item.unlink()
-                    removed += 1
+        for item in self.directory.iterdir():
+            if item.is_file() and moment - item.stat().st_mtime > self.ttl_seconds:
+                item.unlink()
+                removed += 1
         return removed

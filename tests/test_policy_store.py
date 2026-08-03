@@ -56,6 +56,41 @@ def test_record_round_trip(tmp_path):
     assert store.latest("demo-abc")["number"] == "ПА-2026-000004"
 
 
+def test_archive_keeps_newest_first(tmp_path):
+    store = build(tmp_path)
+    store.save_record("demo-abc", {"number": "ПА-2026-000001"})
+    store.save_record("demo-xyz", {"number": "ПА-2026-000002"})
+    numbers = [item["number"] for item in store.archive()]
+    assert numbers == ["ПА-2026-000002", "ПА-2026-000001"]
+
+
+def test_latest_picks_own_client(tmp_path):
+    store = build(tmp_path)
+    store.save_record("demo-abc", {"number": "ПА-2026-000001"})
+    store.save_record("demo-xyz", {"number": "ПА-2026-000002"})
+    assert store.latest("demo-abc")["number"] == "ПА-2026-000001"
+
+
+def test_archive_is_capped(tmp_path):
+    store = build(tmp_path)
+    for index in range(PolicyStore.ARCHIVE_LIMIT + 5):
+        store.save_record("demo-abc", {"number": str(index)})
+    assert len(store.archive()) == PolicyStore.ARCHIVE_LIMIT
+    assert store.archive()[0]["number"] == str(PolicyStore.ARCHIVE_LIMIT + 4)
+
+
+def test_purge_keeps_archive(tmp_path):
+    import os
+
+    store = build(tmp_path, ttl_hours=1)
+    store.save_record("demo-abc", {"number": "ПА-2026-000001"})
+    archive = tmp_path / "records" / "archive.json"
+    stale = time.time() - 2 * 3600
+    os.utime(archive, (stale, stale))
+    store.purge_expired()
+    assert store.archive()[0]["number"] == "ПА-2026-000001"
+
+
 def test_record_rejects_unsafe_client_id(tmp_path):
     store = build(tmp_path)
     with pytest.raises(InvalidClientId):

@@ -114,6 +114,10 @@ def create_app(
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="not found")
 
+    @app.get("/api/policy/archive")
+    def policy_archive(limit: int = 20):
+        return {"policies": policies.archive()[:max(0, limit)]}
+
     @app.get("/policy/{name}")
     def get_policy(name: str):
         try:

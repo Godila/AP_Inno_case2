@@ -20,6 +20,7 @@ const textInput = document.getElementById("text");
 const resetBtn = document.getElementById("reset");
 const policyEl = document.getElementById("policy");
 const assessmentEl = document.getElementById("assessment");
+const archiveEl = document.getElementById("archive");
 
 let clientId = localStorage.getItem("clientId");
 if (!clientId) {
@@ -366,17 +367,68 @@ function renderPolicy() {
     return;
   }
 
-  const frame = document.createElement("iframe");
-  frame.className = "preview";
-  frame.src = lastPolicy.pdfUrl;
-  frame.title = "Полис " + lastPolicy.number;
+  policyEl.appendChild(downloadLink(lastPolicy, "Скачать PDF"));
+}
+
+function downloadLink(policy, text) {
   const link = document.createElement("a");
   link.className = "download";
-  link.href = lastPolicy.pdfUrl;
-  link.download = lastPolicy.number + ".pdf";
-  link.textContent = "Скачать PDF";
-  policyEl.appendChild(frame);
-  policyEl.appendChild(link);
+  link.href = policy.pdfUrl;
+  link.download = policy.number + ".pdf";
+  link.textContent = text;
+  return link;
+}
+
+// Реестр общий, а не по сессии: "Начать заново" выдает новый идентификатор клиента,
+// и архив по сессии всегда содержал бы одну запись.
+async function fetchArchive() {
+  try {
+    const response = await fetch("/api/policy/archive?limit=20");
+    if (!response.ok) {
+      return;
+    }
+    renderArchive((await response.json()).policies || []);
+  } catch (error) {
+    // Реестр не главное на экране: молчим и пробуем на следующем ходе.
+  }
+}
+
+function renderArchive(policies) {
+  archiveEl.innerHTML = "";
+  if (!policies.length) {
+    return;
+  }
+  const title = document.createElement("h2");
+  title.textContent = "Реестр полисов";
+  archiveEl.appendChild(title);
+
+  const list = document.createElement("ul");
+  list.className = "archive-list";
+  policies.forEach(function (policy) {
+    const item = document.createElement("li");
+    const head = document.createElement("div");
+    head.className = "archive-head";
+    const number = document.createElement("span");
+    number.className = "archive-number";
+    number.textContent = policy.number;
+    const sum = document.createElement("span");
+    sum.textContent = money(policy.price);
+    head.appendChild(number);
+    head.appendChild(sum);
+
+    const meta = document.createElement("div");
+    meta.className = "archive-meta";
+    meta.textContent = (policy.card && policy.card.address ? policy.card.address + ", " : "") +
+      "от " + policy.issuedAt;
+
+    item.appendChild(head);
+    item.appendChild(meta);
+    if (policy.pdfUrl) {
+      item.appendChild(downloadLink(policy, "PDF"));
+    }
+    list.appendChild(item);
+  });
+  archiveEl.appendChild(list);
 }
 
 async function send(body) {
@@ -398,6 +450,7 @@ async function send(body) {
     const result = await response.json();
     turn = renderTurn(result);
     await fetchPolicy();
+    await fetchArchive();
   } catch (error) {
     addMessage("bot", "Сеть недоступна: " + error.message);
   } finally {
@@ -504,3 +557,4 @@ resetBtn.addEventListener("click", function () {
 renderCard(null);
 renderPrice(null);
 addMessage("bot assistant", "Опишите объект страхования.", "Помощник");
+fetchArchive();
