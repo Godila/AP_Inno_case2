@@ -4,7 +4,7 @@ name: Сообщение
 position:
   x: 222
   y: 278
-next-step: function_pdfspike
+next-step: agent_rjsar
 next-error-step: null
 parameters:
   placeholder: null
