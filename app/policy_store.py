@@ -78,6 +78,15 @@ class PolicyStore:
                 return entry
         raise FileNotFoundError(client_id)
 
+    def drop(self, number: str = None) -> int:
+        """Убирает из реестра один полис или весь реестр. Бланки остаются на диске
+        и уходят сами по TTL: удалять их отдельно незачем, ссылки на них уже нигде
+        не показываются."""
+        items = self.archive()
+        keep = [item for item in items if number and item.get("number") != number]
+        self._archive_path().write_text(json.dumps(keep, ensure_ascii=False), encoding="utf-8")
+        return len(items) - len(keep)
+
     def purge_expired(self, now: float = None) -> int:
         """Чистит только бланки. Реестр не трогаем: он и есть ценность."""
         moment = now if now is not None else time.time()

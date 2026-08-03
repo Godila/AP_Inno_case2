@@ -231,3 +231,52 @@ def test_latest_policy_rejects_unsafe_client_id(tmp_path):
     client = build(tmp_path, FakeChatApi())
 
     assert client.get("/api/policy/latest", params={"clientId": "../etc"}).status_code == 422
+
+
+def test_archive_clear_requires_token(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+
+    assert client.delete("/api/policy/archive").status_code == 403
+
+
+def test_archive_clear_removes_everything(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    for number in ("ПА-2026-000001", "ПА-2026-000002"):
+        client.post(
+            "/api/policy",
+            json={
+                "pdfBase64": base64.b64encode(b"%PDF").decode("ascii"),
+                "clientId": "demo-abc",
+                "policy": {"number": number},
+            },
+            headers={"X-Policy-Token": "secret"},
+        )
+
+    response = client.delete("/api/policy/archive", headers={"X-Policy-Token": "secret"})
+
+    assert response.json() == {"removed": 2}
+    assert client.get("/api/policy/archive").json()["policies"] == []
+
+
+def test_archive_clear_removes_one_policy(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    for number in ("ПА-2026-000001", "ПА-2026-000002"):
+        client.post(
+            "/api/policy",
+            json={
+                "pdfBase64": base64.b64encode(b"%PDF").decode("ascii"),
+                "clientId": "demo-abc",
+                "policy": {"number": number},
+            },
+            headers={"X-Policy-Token": "secret"},
+        )
+
+    response = client.delete(
+        "/api/policy/archive",
+        params={"number": "ПА-2026-000001"},
+        headers={"X-Policy-Token": "secret"},
+    )
+
+    assert response.json() == {"removed": 1}
+    left = client.get("/api/policy/archive").json()["policies"]
+    assert [item["number"] for item in left] == ["ПА-2026-000002"]

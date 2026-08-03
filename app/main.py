@@ -118,6 +118,14 @@ def create_app(
     def policy_archive(limit: int = 20):
         return {"policies": policies.archive()[:max(0, limit)]}
 
+    # Уборка перед показом. Кнопки в интерфейсе нет намеренно: страница публичная,
+    # и такую кнопку нажал бы кто угодно.
+    @app.delete("/api/policy/archive")
+    def clear_archive(number: str = None, x_policy_token: str = Header(default="")):
+        if not policy_token or x_policy_token != policy_token:
+            raise HTTPException(status_code=403, detail="forbidden")
+        return {"removed": policies.drop(number)}
+
     @app.get("/policy/{name}")
     def get_policy(name: str):
         try:
