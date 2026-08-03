@@ -25,6 +25,8 @@ main { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; padding: 16px 2
 @keyframes blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
 .controls button, .upload { padding: 8px 14px; border-radius: 6px; border: 1px solid #c9ccd3; background: #fff; cursor: pointer; }
+/* Загрузка записи - запасной путь на случай отказавшего микрофона, а не основной. */
+.upload { padding: 5px 10px; font-size: 13px; color: #6b7280; }
 button.recording { background: #ffe5e5; border-color: #ff8080; }
 #text-form { display: flex; gap: 8px; flex: 1; min-width: 240px; }
 #text { flex: 1; padding: 8px; border: 1px solid #c9ccd3; border-radius: 6px; }
@@ -69,8 +71,8 @@ dd.filled { animation: flash 0.6s ease-out; }
   .dialog { order: 2; }
   .messages { min-height: 180px; max-height: 45vh; max-height: 45dvh; }
   .msg { max-width: 92%; }
-  .controls button, .upload { min-height: 44px; padding: 10px 16px; font-size: 15px; }
-  .upload { display: inline-flex; align-items: center; }
+  .controls button { min-height: 44px; padding: 10px 16px; font-size: 15px; }
+  .upload { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px; font-size: 13px; }
   #record { flex: 1 1 100%; font-weight: 600; }
   #text-form { flex: 1 1 100%; min-width: 0; }
   #text { min-height: 44px; font-size: 16px; }
