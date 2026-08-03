@@ -2,8 +2,8 @@
 id: function_search_search_web_tviuw
 name: search.search_web
 position:
-  x: 1281
-  y: 629
+  x: 1816
+  y: 595
 next-step: null
 next-error-step: null
 parameters:
@@ -29,7 +29,5 @@ parameters:
       value: null
       filled-ai: false
   context-config: null
-  hitl-tool-config:
-    enabled: false
-    approval-question: Confirm action?
+  hitl-tool-config: null
   custom-headers: null
