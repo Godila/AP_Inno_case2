@@ -1,8 +1,0 @@
----
-key: duckduckgo-search
-name: DuckDuckGo Search
-collection-name: search
-url: https://just-ai-duckduckgo-search-mcp.app.caila.io/sse
-transport-type: SSE
-credential-key: null
-custom-headers: {}

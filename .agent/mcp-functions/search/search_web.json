@@ -1,0 +1,25 @@
+{
+  "description" : "\n🌐 Улучшенный поиск веб-страниц в интернете через DuckDuckGo\n\nВыполняет поиск веб-страниц с использованием нового пакета duckduckgo-search.\nВозвращает больше результатов с подробной информацией.\n\nArgs:\n    query: Поисковый запрос (обязательный)\n    max_results: Максимальное количество результатов (по умолчанию 15, макс 50)\n    region: Регион поиска (по умолчанию ru-ru, также us-en, wt-wt и т.д.)\n    time_limit: Ограничение по времени (d=день, w=неделя, m=месяц, y=год)\n\nReturns:\n    Отформатированные результаты поиска\n",
+  "input" : {
+    "type" : "object",
+    "properties" : {
+      "query" : {
+        "type" : "string",
+        "description" : ""
+      },
+      "max_results" : {
+        "type" : "integer",
+        "description" : ""
+      },
+      "region" : {
+        "type" : "string",
+        "description" : ""
+      },
+      "time_limit" : {
+        "type" : "string",
+        "description" : ""
+      }
+    },
+    "required" : [ "query" ]
+  }
+}

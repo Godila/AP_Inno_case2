@@ -1,0 +1,25 @@
+{
+  "description" : "\n🎥 Улучшенный поиск видео через DuckDuckGo\n\nВыполняет поиск видео с использованием нового пакета duckduckgo-search.\nВозвращает ссылки на видео с длительностью и описанием.\n\nArgs:\n    query: Поисковый запрос для видео (обязательный)\n    max_results: Максимальное количество результатов (по умолчанию 15, макс 20)\n    region: Регион поиска (по умолчанию ru-ru, также us-en, wt-wt и т.д.)\n    time_limit: Ограничение по времени (d=день, w=неделя, m=месяц)\n\nReturns:\n    Отформатированные результаты поиска видео с информацией о длительности\n",
+  "input" : {
+    "type" : "object",
+    "properties" : {
+      "query" : {
+        "type" : "string",
+        "description" : ""
+      },
+      "max_results" : {
+        "type" : "integer",
+        "description" : ""
+      },
+      "region" : {
+        "type" : "string",
+        "description" : ""
+      },
+      "time_limit" : {
+        "type" : "string",
+        "description" : ""
+      }
+    },
+    "required" : [ "query" ]
+  }
+}

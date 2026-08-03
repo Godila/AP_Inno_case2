@@ -1,0 +1,21 @@
+{
+  "description" : "\n🖼️ Улучшенный поиск изображений через DuckDuckGo\n\nВыполняет поиск изображений с использованием нового пакета duckduckgo-search.\nВозвращает ссылки на изображения с размерами и превью.\n\nArgs:\n    query: Поисковый запрос для изображений (обязательный)\n    max_results: Максимальное количество результатов (по умолчанию 15, макс 20)\n    region: Регион поиска (по умолчанию ru-ru, также us-en, wt-wt и т.д.)\n\nReturns:\n    Отформатированные результаты поиска изображений с ссылками\n",
+  "input" : {
+    "type" : "object",
+    "properties" : {
+      "query" : {
+        "type" : "string",
+        "description" : ""
+      },
+      "max_results" : {
+        "type" : "integer",
+        "description" : ""
+      },
+      "region" : {
+        "type" : "string",
+        "description" : ""
+      }
+    },
+    "required" : [ "query" ]
+  }
+}

@@ -1,0 +1,9 @@
+---
+key: 1000156248-duckduckgo_search-uig
+credential-key: null
+name: DuckDuckGo Search
+transport-type: SSE
+collection-name: search
+url: https://just-ai-duckduckgo-search-mcp.app.caila.io/sse
+custom-headers: null
+origin-key: duckduckgo-search
