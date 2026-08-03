@@ -29,7 +29,5 @@ parameters:
       value: null
       filled-ai: false
   context-config: null
-  hitl-tool-config:
-    enabled: false
-    approval-question: Confirm action?
+  hitl-tool-config: null
   custom-headers: null
