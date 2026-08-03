@@ -2,8 +2,8 @@
 id: agent_stub
 name: Андеррайтер (заглушка)
 position:
-  x: 856
-  y: 700
+  x: 1260
+  y: 275
 next-step: null
 next-error-step: null
 parameters:
@@ -27,8 +27,9 @@ parameters:
          триста символов ответа инструмента дословно, без пересказа.
       Если инструмент вернул ошибку, приведи текст ошибки дословно.
       Ничего другого не делай и вопросов не задавай.
-    query-override: ""
-  tools: []
+    query-override: null
+  tools:
+  - function_search_search_web_tviuw
   handoff-agents:
     allowed-any: false
     allowed-agent-node-ids: []
