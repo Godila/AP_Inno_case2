@@ -2,8 +2,8 @@
 id: function_pdfspike
 name: Спайк pdfmake
 position:
-  x: 680
-  y: 460
+  x: 539
+  y: 297
 next-step: agent_rjsar
 next-error-step: null
 parameters:
@@ -11,5 +11,7 @@ parameters:
   collection: pdfspike
   function: pdfspike
   is-tool: false
-  context-config: null
   parameters: {}
+  context-config: null
+  hitl-tool-config: null
+  custom-headers: null
