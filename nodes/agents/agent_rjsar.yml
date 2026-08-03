@@ -2,8 +2,8 @@
 id: agent_rjsar
 name: Страховой помощник
 position:
-  x: 856
-  y: 272
+  x: 690
+  y: 277
 next-step: agent_underwriter
 next-error-step: null
 parameters:
@@ -54,7 +54,7 @@ parameters:
       Когда isComplete равно true, подведи итог и скажи, что передаешь объект
       андеррайтеру. На этом твоя цель достигнута, больше вопросов не задавай:
       оценкой риска и выпуском полиса занимается он.
-    query-override: ""
+    query-override: null
   tools:
   - function_savecard
   handoff-agents:

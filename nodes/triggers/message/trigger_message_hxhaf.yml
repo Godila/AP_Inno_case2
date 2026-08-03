@@ -2,8 +2,8 @@
 id: trigger_message_hxhaf
 name: Сообщение
 position:
-  x: 411
-  y: 275
+  x: 293
+  y: 276
 next-step: agent_rjsar
 next-error-step: null
 parameters:
