@@ -1,3 +1,4 @@
+import base64
 import io
 
 from fastapi.testclient import TestClient
@@ -39,14 +40,18 @@ class FakeAsr:
         return self.text
 
 
-def build(tmp_path, chat_api, asr=None):
+def build(tmp_path, chat_api, asr=None, policy_token="secret"):
     app = create_app(
         chat_api=chat_api,
         asr=asr or FakeAsr(),
-        audio_dir=str(tmp_path),
+        audio_dir=str(tmp_path / "audio"),
         public_base_url="https://demo.example",
         max_audio_bytes=1024,
         audio_ttl_hours=24,
+        policy_dir=str(tmp_path / "policy"),
+        policy_token=policy_token,
+        max_policy_bytes=1024,
+        policy_ttl_hours=24,
     )
     return TestClient(app)
 
@@ -145,3 +150,57 @@ def test_chat_api_failure_returns_502(tmp_path):
 
     assert response.status_code == 502
     assert "error" in response.json()
+
+
+def test_policy_upload_returns_public_url(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    body = {"pdfBase64": base64.b64encode(b"%PDF-1.4 demo").decode("ascii")}
+
+    response = client.post("/api/policy", json=body, headers={"X-Policy-Token": "secret"})
+
+    assert response.status_code == 200
+    url = response.json()["url"]
+    assert url.startswith("https://demo.example/policy/")
+
+    stored = client.get("/policy/" + url.rsplit("/", 1)[1])
+    assert stored.status_code == 200
+    assert stored.content == b"%PDF-1.4 demo"
+    assert stored.headers["content-type"] == "application/pdf"
+
+
+def test_policy_upload_requires_token(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    body = {"pdfBase64": base64.b64encode(b"%PDF").decode("ascii")}
+
+    assert client.post("/api/policy", json=body).status_code == 403
+    assert client.post("/api/policy", json=body, headers={"X-Policy-Token": "wrong"}).status_code == 403
+
+
+def test_policy_upload_refused_without_configured_token(tmp_path):
+    client = build(tmp_path, FakeChatApi(), policy_token="")
+    body = {"pdfBase64": base64.b64encode(b"%PDF").decode("ascii")}
+
+    assert client.post("/api/policy", json=body, headers={"X-Policy-Token": ""}).status_code == 403
+
+
+def test_policy_upload_rejects_broken_base64(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+
+    response = client.post("/api/policy", json={"pdfBase64": "not base64!"}, headers={"X-Policy-Token": "secret"})
+
+    assert response.status_code == 422
+
+
+def test_policy_upload_rejects_oversized_file(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+    body = {"pdfBase64": base64.b64encode(b"x" * 2048).decode("ascii")}
+
+    response = client.post("/api/policy", json=body, headers={"X-Policy-Token": "secret"})
+
+    assert response.status_code == 413
+
+
+def test_missing_policy_gives_404(tmp_path):
+    client = build(tmp_path, FakeChatApi())
+
+    assert client.get("/policy/deadbeef.pdf").status_code == 404

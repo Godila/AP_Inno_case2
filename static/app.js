@@ -29,7 +29,6 @@ if (!clientId) {
 let recorder = null;
 let chunks = [];
 let previousCard = {};
-let policyUrl = null;
 let lastPolicy = null;
 let handoffNudged = false;
 // Автор держится между ходами: андеррайтер может ответить и без вызова инструмента,
@@ -188,8 +187,6 @@ function addSearch(query) {
   scrollDown();
 }
 
-// Реквизиты полиса и сам бланк приходят разными репликами, поэтому рисуем по мере
-// поступления: сначала карточка полиса, потом в нее добавляется превью.
 function applyPayload(payload) {
   if (payload.card) {
     renderCard(payload.card);
@@ -197,10 +194,6 @@ function applyPayload(payload) {
   }
   if (payload.policy) {
     lastPolicy = payload.policy;
-    renderPolicy();
-  }
-  if (payload.pdfBase64) {
-    setPdf(payload.pdfBase64);
     renderPolicy();
   }
 }
@@ -237,28 +230,12 @@ function renderTurn(response) {
 }
 
 function clearPolicy() {
-  if (policyUrl) {
-    URL.revokeObjectURL(policyUrl);
-    policyUrl = null;
-  }
   lastPolicy = null;
   policyEl.innerHTML = "";
 }
 
-// PDF показываем из Blob, а не из data-URI: браузеры не дают открывать
-// data:application/pdf ни во фрейме, ни по ссылке.
-function setPdf(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  if (policyUrl) {
-    URL.revokeObjectURL(policyUrl);
-  }
-  policyUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-}
-
+// Бланк лежит на прокси и приходит ссылкой: в песочнице платформы нет объектного
+// хранилища, а реплика с base64 до канала не доезжает.
 function renderPolicy() {
   if (!lastPolicy) {
     return;
@@ -273,21 +250,21 @@ function renderPolicy() {
   term.textContent = "с " + lastPolicy.issuedAt + " по " + lastPolicy.expiresAt;
   policyEl.appendChild(term);
 
-  if (!policyUrl) {
+  if (!lastPolicy.pdfUrl) {
     const note = document.createElement("div");
     note.className = "term";
-    note.textContent = "Бланк готовится…";
+    note.textContent = "Бланк не сформирован.";
     policyEl.appendChild(note);
     return;
   }
 
   const frame = document.createElement("iframe");
   frame.className = "preview";
-  frame.src = policyUrl;
+  frame.src = lastPolicy.pdfUrl;
   frame.title = "Полис " + lastPolicy.number;
   const link = document.createElement("a");
   link.className = "download";
-  link.href = policyUrl;
+  link.href = lastPolicy.pdfUrl;
   link.download = lastPolicy.number + ".pdf";
   link.textContent = "Скачать PDF";
   policyEl.appendChild(frame);

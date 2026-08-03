@@ -14,6 +14,10 @@ class Config:
     asr_api_key: str
     asr_url: str
     asr_timeout_seconds: float
+    policy_dir: str
+    policy_token: str
+    max_policy_bytes: int
+    policy_ttl_hours: int
 
 
 def load_config() -> Config:
@@ -31,4 +35,8 @@ def load_config() -> Config:
             "https://caila.io/api/mlpgate/account/jay/model/sber-gigaam/predict-with-config",
         ),
         asr_timeout_seconds=float(os.getenv("ASR_TIMEOUT_SECONDS", "120")),
+        policy_dir=os.getenv("POLICY_DIR", "./data/policy"),
+        policy_token=os.getenv("POLICY_TOKEN", ""),
+        max_policy_bytes=int(os.getenv("MAX_POLICY_BYTES", str(5 * 1024 * 1024))),
+        policy_ttl_hours=int(os.getenv("POLICY_TTL_HOURS", "24")),
     )
