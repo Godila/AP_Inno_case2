@@ -18,6 +18,7 @@ var CARD_KEY = "card";
 var RISK_KEY = "risk";
 var ASSESSMENT_KEY = "assessment";
 var COUNTER_KEY = "counter";
+var SETTINGS_KEY = "settings";
 var DB_INTEGRATION = "1000156248-my-joz";
 
 var CARD_LABELS = [
@@ -217,8 +218,45 @@ async function renderPdf(policy) {
     : Buffer.from(buffer).toString("base64");
 }
 
-// Агенту возвращаем короткую сводку, а тяжелый base64 уходит на страницу отдельной
-// репликой: незачем гонять восемнадцать килобайт через контекст модели.
+// Бланк уезжает в прокси, а в канал идет только ссылка. Причин две: в песочнице нет
+// объектного хранилища (Reactions.sendFile принимает url, а не содержимое), и реплика
+// с восемнадцатью килобайтами base64 до канала не доезжает.
+// Адрес и секрет лежат в базе документом settings, рядом с тарифом: в код их класть
+// нельзя, они уедут в git.
+async function publishPdf(settings, base64) {
+  if (!settings || !settings.proxyUrl || !settings.policyToken) {
+    await Log.error({ message: "Документ settings не настроен, бланк не опубликован" });
+    return null;
+  }
+  var response = await Http.post({
+    url: String(settings.proxyUrl).replace(/\/+$/, "") + "/api/policy",
+    headers: { "X-Policy-Token": settings.policyToken, "Content-Type": "application/json" },
+    body: { pdfBase64: base64 }
+  });
+  if (!response || response.status !== 200) {
+    await Log.error({
+      message: "Прокси не принял бланк",
+      data: { status: response ? response.status : null }
+    });
+    return null;
+  }
+  return response.body && response.body.url ? response.body.url : null;
+}
+
+// Отправка файла в канал - украшение, а не обязанность: полис уже выпущен и записан
+// в реестр. Поэтому падение здесь не должно ронять выпуск.
+async function attachPdf(url, name) {
+  try {
+    await Reactions.sendFile({ url: url, name: name });
+  } catch (error) {
+    await Log.error({
+      message: "Файл в канал не ушел",
+      data: { error: error && error.message ? error.message : String(error) }
+    });
+  }
+}
+
+// Агенту возвращаем короткую сводку, странице - реквизиты и ссылку на бланк.
 async function run() {
   var card = documentValue(await SessionDb.get({ documentKey: CARD_KEY })) || {};
   var risk = documentValue(await SessionDb.get({ documentKey: RISK_KEY })) || {};
@@ -237,26 +275,32 @@ async function run() {
   var policy = buildPolicy(card, risk, assessment, formatNumber(counter, dates.year), dates);
   var base64 = await renderPdf(policy);
 
+  var settings = documentValue(await Db.get({
+    dbIntegration: DB_INTEGRATION,
+    documentKey: SETTINGS_KEY
+  }));
+  policy.pdfUrl = await publishPdf(settings, base64);
+
   await Db.put({
     dbIntegration: DB_INTEGRATION,
     documentKey: "policy-" + policy.number,
     value: policy
   });
 
-  // Двумя репликами намеренно. Реквизиты полиса - несколько сотен байт и доходят
-  // всегда; бланк это восемнадцать килобайт base64, и на такой реплике канал
-  // ведет себя иначе. Если тяжелая реплика потеряется, страница все равно покажет
-  // выпущенный полис, просто без превью.
   await Reactions.sendText({
     text: "```json\n" + JSON.stringify({ stage: "issued", policy: policy }) + "\n```"
   });
-  await Reactions.sendText({
-    text: "```json\n" + JSON.stringify({ stage: "issued", pdfBase64: base64 }) + "\n```"
+  if (policy.pdfUrl) {
+    await attachPdf(policy.pdfUrl, policy.number + ".pdf");
+  }
+  await Log.info({
+    message: "Полис выпущен",
+    data: { number: policy.number, price: policy.price, pdfUrl: policy.pdfUrl }
   });
-  await Log.info({ message: "Полис выпущен", data: { number: policy.number, price: policy.price } });
 
   return {
     issued: true,
+    pdfPublished: policy.pdfUrl !== null,
     number: policy.number,
     price: policy.price,
     sumInsured: policy.sumInsured,
