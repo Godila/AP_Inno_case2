@@ -30,6 +30,6 @@ parameters:
       filled-ai: false
   context-config: null
   hitl-tool-config:
-    enabled: true
+    enabled: false
     approval-question: Confirm action?
   custom-headers: null
