@@ -152,6 +152,7 @@ function buildPayload(card, tariff, meta) {
   var missing = missingFields(card);
   var extra = meta || {};
   return {
+    stage: "collect",
     card: card,
     missing: missing,
     price: calcPrice(card, tariff),
