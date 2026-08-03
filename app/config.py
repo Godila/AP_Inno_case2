@@ -28,7 +28,7 @@ def load_config() -> Config:
         asr_api_key=os.getenv("ASR_API_KEY", ""),
         asr_url=os.getenv(
             "ASR_URL",
-            "https://caila.io/api/mlpgate/account/jay/model/sber-gigaam/predict",
+            "https://caila.io/api/mlpgate/account/jay/model/sber-gigaam/predict-with-config",
         ),
         asr_timeout_seconds=float(os.getenv("ASR_TIMEOUT_SECONDS", "120")),
     )

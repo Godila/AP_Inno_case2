@@ -7,6 +7,11 @@ class AsrError(RuntimeError):
     pass
 
 
+# Говорящий один, поэтому диаризация и сегментация только мешают: с ними в text
+# приходят метки спикеров и тайминги, и агент принимает их за часть реплики.
+RECOGNITION_CONFIG = {"enable_diarization": False, "enable_segmentation": False}
+
+
 class CailaAsrClient:
     """Распознавание речи моделью sber-gigaam в Caila: аудио уходит одним base64."""
 
@@ -20,7 +25,10 @@ class CailaAsrClient:
         if not self.api_key:
             raise AsrError("asr api key is not configured")
 
-        payload = {"audio_base64": base64.b64encode(audio).decode("ascii")}
+        payload = {
+            "data": {"audio_base64": base64.b64encode(audio).decode("ascii")},
+            "config": RECOGNITION_CONFIG,
+        }
         headers = {"MLP-API-KEY": self.api_key}
         try:
             response = self._client.post(self.url, json=payload, headers=headers, timeout=self.timeout)
