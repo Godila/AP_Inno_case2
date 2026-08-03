@@ -2,8 +2,8 @@
 id: function_savecard
 name: Карточка и цена
 position:
-  x: 853
-  y: 576
+  x: 856
+  y: 552
 next-step: null
 next-error-step: null
 parameters:
@@ -11,6 +11,7 @@ parameters:
   collection: my
   function: saveCard
   is-tool: true
+  context-config: null
   parameters:
     type:
       type: STRING
@@ -44,6 +45,3 @@ parameters:
       type: STRING
       value: null
       filled-ai: true
-  context-config: null
-  hitl-tool-config: null
-  custom-headers: null

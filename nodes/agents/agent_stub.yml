@@ -2,8 +2,8 @@
 id: agent_stub
 name: Андеррайтер (заглушка)
 position:
-  x: 1233
-  y: 276
+  x: 856
+  y: 700
 next-step: null
 next-error-step: null
 parameters:
@@ -19,12 +19,17 @@ parameters:
     structured-output-schema: null
   system-promts:
     role: Ты андеррайтер. Это временная заглушка для проверки передачи управления.
-    goal: "Подтвердить, что разговор дошел до тебя."
+    goal: Подтвердить, что разговор дошел до тебя.
     instructions: |-
-      Первой же репликой скажи ровно: "Андеррайтер на связи, заявку получил."
-      Больше ничего не делай, вопросов не задавай, карточку не обсуждай.
-    query-override: null
-  tools: []
+      Как только заявка дошла до тебя, сделай ровно два действия.
+      1. Вызови инструмент поиска с запросом "Васильево".
+      2. Ответь так: "Андеррайтер на связи. Поиск вернул: " и дальше первые
+         триста символов ответа инструмента дословно, без пересказа.
+      Если инструмент вернул ошибку, приведи текст ошибки дословно.
+      Ничего другого не делай и вопросов не задавай.
+    query-override: ""
+  tools:
+    - function_checkarea
   handoff-agents:
     allowed-any: false
     allowed-agent-node-ids: []
@@ -32,7 +37,7 @@ parameters:
   telephony-config: null
   enable-context: true
   chat-history-limit: 50
-  sequential-tool-calls-limit: 1
+  sequential-tool-calls-limit: 2
   unique-tools-count-limit: 1
   total-response-timeout:
     timeout: 45
