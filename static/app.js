@@ -97,16 +97,18 @@ function extractPayload(response) {
 
 // Агент иногда отвечает с markdown-разметкой, а сообщения выводятся как обычный текст,
 // поэтому звездочки убираем здесь: это надежнее, чем просить модель их не ставить.
-function botText(response, payload) {
-  if (payload && payload.question) {
-    return payload.question;
-  }
-  return replyTexts(response)
-    .join("\n")
+function cleanText(text) {
+  return text
     .replace(/```json[\s\S]+?```/g, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/^#{1,6}\s*/gm, "")
     .trim();
+}
+
+// Реплики не склеиваем: в одном ходе их может быть несколько, в том числе от разных
+// агентов, и каждая должна быть отдельным сообщением.
+function botTexts(response) {
+  return replyTexts(response).map(cleanText).filter(function (text) { return text; });
 }
 
 async function send(body) {
@@ -125,10 +127,9 @@ async function send(body) {
     }
     const result = await response.json();
     const payload = extractPayload(result);
-    const text = botText(result, payload);
-    if (text) {
+    botTexts(result).forEach(function (text) {
       addMessage("bot", text);
-    }
+    });
     if (payload) {
       renderCard(payload.card);
       renderPrice(payload.price);
