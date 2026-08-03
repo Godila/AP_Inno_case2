@@ -243,12 +243,15 @@ async function run() {
     value: policy
   });
 
+  // Двумя репликами намеренно. Реквизиты полиса - несколько сотен байт и доходят
+  // всегда; бланк это восемнадцать килобайт base64, и на такой реплике канал
+  // ведет себя иначе. Если тяжелая реплика потеряется, страница все равно покажет
+  // выпущенный полис, просто без превью.
   await Reactions.sendText({
-    text: "```json\n" + JSON.stringify({
-      stage: "issued",
-      policy: policy,
-      pdfBase64: base64
-    }) + "\n```"
+    text: "```json\n" + JSON.stringify({ stage: "issued", policy: policy }) + "\n```"
+  });
+  await Reactions.sendText({
+    text: "```json\n" + JSON.stringify({ stage: "issued", pdfBase64: base64 }) + "\n```"
   });
   await Log.info({ message: "Полис выпущен", data: { number: policy.number, price: policy.price } });
 
