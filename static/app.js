@@ -95,6 +95,8 @@ function extractPayload(response) {
   return null;
 }
 
+// Агент иногда отвечает с markdown-разметкой, а сообщения выводятся как обычный текст,
+// поэтому звездочки убираем здесь: это надежнее, чем просить модель их не ставить.
 function botText(response, payload) {
   if (payload && payload.question) {
     return payload.question;
@@ -102,6 +104,8 @@ function botText(response, payload) {
   return replyTexts(response)
     .join("\n")
     .replace(/```json[\s\S]+?```/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
     .trim();
 }
 
