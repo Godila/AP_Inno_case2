@@ -19,6 +19,7 @@ const textForm = document.getElementById("text-form");
 const textInput = document.getElementById("text");
 const resetBtn = document.getElementById("reset");
 const policyEl = document.getElementById("policy");
+const assessmentEl = document.getElementById("assessment");
 
 let clientId = localStorage.getItem("clientId");
 if (!clientId) {
@@ -192,6 +193,9 @@ function applyPayload(payload) {
     renderCard(payload.card);
     renderPrice(payload.price);
   }
+  if (payload.stage === "risk") {
+    renderAssessment(payload);
+  }
   if (payload.policy) {
     lastPolicy = payload.policy;
     renderPolicy();
@@ -232,6 +236,91 @@ function renderTurn(response) {
 function clearPolicy() {
   lastPolicy = null;
   policyEl.innerHTML = "";
+}
+
+const RISK_LABELS = {
+  heating: "Отопление",
+  security: "Охрана",
+  occupancy: "Проживание"
+};
+
+const VERDICTS = {
+  accepted: { text: "Заявка принята", cls: "ok" },
+  escalated: { text: "На ручное рассмотрение", cls: "warn" },
+  declined: { text: "Отказ в страховании", cls: "bad" },
+  unavailable: { text: "Проверка недоступна", cls: "bad" },
+  incomplete: { text: "Собираем риск-профиль", cls: "wait" }
+};
+
+function money(value) {
+  return typeof value === "number" ? value.toLocaleString("ru-RU") + " руб" : "—";
+}
+
+// Коэффициент показываем процентом: "печное отопление +15%" читается с экрана,
+// а "k 1.15" требует объяснений.
+function percent(k) {
+  const shift = Math.round((k - 1) * 100);
+  return (shift > 0 ? "+" : "") + shift + "%";
+}
+
+function addRows(parent, rows) {
+  const list = document.createElement("dl");
+  rows.forEach(function (row) {
+    const dt = document.createElement("dt");
+    dt.textContent = row[0];
+    const dd = document.createElement("dd");
+    dd.textContent = row[1];
+    list.appendChild(dt);
+    list.appendChild(dd);
+  });
+  parent.appendChild(list);
+}
+
+function renderAssessment(payload) {
+  assessmentEl.innerHTML = "";
+  const title = document.createElement("h2");
+  title.textContent = "Оценка риска";
+  assessmentEl.appendChild(title);
+
+  const risk = payload.risk || {};
+  addRows(assessmentEl, Object.keys(RISK_LABELS).map(function (field) {
+    return [RISK_LABELS[field], risk[field] ? String(risk[field]) : "—"];
+  }));
+
+  const verdict = VERDICTS[payload.decision] || VERDICTS.incomplete;
+  const badge = document.createElement("div");
+  badge.className = "verdict " + verdict.cls;
+  badge.textContent = verdict.text;
+  assessmentEl.appendChild(badge);
+
+  if (payload.reasons && payload.reasons.length) {
+    const list = document.createElement("ul");
+    list.className = "reasons";
+    payload.reasons.forEach(function (item) {
+      const node = document.createElement("li");
+      node.textContent = item.reason;
+      if (typeof item.k === "number") {
+        const tag = document.createElement("span");
+        tag.className = item.k > 1 ? "up" : "down";
+        tag.textContent = percent(item.k);
+        node.appendChild(tag);
+      }
+      list.appendChild(node);
+    });
+    assessmentEl.appendChild(list);
+  }
+
+  if (payload.decision === "accepted") {
+    addRows(assessmentEl, [
+      ["Страховая сумма", money(payload.sumInsured)],
+      ["Франшиза", money(payload.franchise)],
+      ["Премия с учётом риска", money(payload.price)]
+    ]);
+  }
+}
+
+function clearAssessment() {
+  assessmentEl.innerHTML = "";
 }
 
 // Реквизиты полиса страница забирает у прокси, а не из диалога: реплики функции
@@ -405,6 +494,7 @@ resetBtn.addEventListener("click", function () {
   previousCard = {};
   currentAuthor = AUTHORS.collect;
   handoffNudged = false;
+  clearAssessment();
   clearPolicy();
   renderCard(null);
   renderPrice(null);
